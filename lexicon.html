@@ -637,8 +637,11 @@ auth.onAuthStateChanged(async u => {
 // Auth
 // ────────────────────────────────────────────
 document.getElementById('btn-signin').onclick = () =>
-  auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())
+  auth.signInWithRedirect(new firebase.auth.GoogleAuthProvider())
     .catch(e => toast('Sign-in failed: ' + e.message, 'error'));
+
+auth.getRedirectResult()
+  .catch(e => toast('Sign-in failed: ' + e.message, 'error'));
 
 document.getElementById('btn-signout').onclick = () => auth.signOut();
 
