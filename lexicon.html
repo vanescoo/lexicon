@@ -312,8 +312,10 @@
         <label>Model Name</label>
         <input id="setup-model" type="text" placeholder="gpt-4o" />
       </div>
-      <p class="help-text">Works with any OpenAI-compatible API (OpenAI, Groq, Together AI, Mistral, Ollama, OpenRouter, etc.) and <strong>Google Gemini</strong>.<br>
-        <strong>Gemini:</strong> URL → <code>https://generativelanguage.googleapis.com/v1beta</code>, Model → <code>gemini-2.0-flash</code>, Key → your Gemini API key.<br>
+      <p class="help-text">Supports <strong>OpenAI</strong>, <strong>Google Gemini</strong>, <strong>Anthropic Claude</strong>, and any OpenAI-compatible API (Groq, Mistral, Ollama, OpenRouter, etc.).<br>
+        <strong>OpenAI:</strong> URL → <code>https://api.openai.com/v1</code>, Model → <code>gpt-4o</code><br>
+        <strong>Gemini:</strong> URL → <code>https://generativelanguage.googleapis.com/v1beta</code>, Model → <code>gemini-2.0-flash</code><br>
+        <strong>Claude:</strong> URL → <code>https://api.anthropic.com</code>, Model → <code>claude-opus-4-6</code><br>
         Your key is stored in your private Firebase profile.</p>
     </div>
 
@@ -928,6 +930,7 @@ RESPOND WITH ONLY A RAW JSON ARRAY. No markdown, no backticks, no explanation. E
   try {
     const base     = profile.apiBaseUrl.replace(/\/$/, '');
     const isGemini = base.includes('generativelanguage.googleapis.com') && !base.includes('/openai');
+    const isClaude = base.includes('anthropic.com');
     let res, raw;
 
     if (isGemini) {
@@ -944,6 +947,24 @@ RESPOND WITH ONLY A RAW JSON ARRAY. No markdown, no backticks, no explanation. E
       if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
       const data = await res.json();
       raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    } else if (isClaude) {
+      // Anthropic Claude API
+      res = await fetch(`${base}/v1/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type':    'application/json',
+          'x-api-key':       profile.apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model:      profile.model,
+          max_tokens: 4096,
+          messages:   [{ role: 'user', content: prompt }],
+        })
+      });
+      if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+      const data = await res.json();
+      raw = data.content?.[0]?.text || '';
     } else {
       // OpenAI-compatible API
       res = await fetch(`${base}/chat/completions`, {
