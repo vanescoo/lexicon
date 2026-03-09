@@ -615,35 +615,37 @@ firebase.initializeApp(FIREBASE_CONFIG);
 auth = firebase.auth();
 db   = firebase.firestore();
 
-auth.onAuthStateChanged(async u => {
-  if (u) {
-    currentUser = u;
-    const doc = await db.collection('users').doc(u.uid).get();
-    if (doc.exists) {
-      profile = doc.data();
-      await loadCards();
-      showScreen('dashboard');
-      initApp();
-    } else {
-      showScreen('setup');
-      fillLangSelects(['setup-native','setup-target']);
-    }
-  } else {
-    showScreen('auth');
+async function initAuth() {
+  try {
+    await auth.getRedirectResult();
+  } catch(e) {
+    toast('Sign-in failed: ' + e.message, 'error');
   }
-});
 
-// ────────────────────────────────────────────
-// Auth
-// ────────────────────────────────────────────
+  auth.onAuthStateChanged(async u => {
+    if (u) {
+      currentUser = u;
+      const doc = await db.collection('users').doc(u.uid).get();
+      if (doc.exists) {
+        profile = doc.data();
+        await loadCards();
+        showScreen('dashboard');
+        initApp();
+      } else {
+        showScreen('setup');
+        fillLangSelects(['setup-native','setup-target']);
+      }
+    } else {
+      showScreen('auth');
+    }
+  });
+}
+
+initAuth();
+
 document.getElementById('btn-signin').onclick = () =>
   auth.signInWithRedirect(new firebase.auth.GoogleAuthProvider())
     .catch(e => toast('Sign-in failed: ' + e.message, 'error'));
-
-auth.getRedirectResult()
-  .catch(e => toast('Sign-in failed: ' + e.message, 'error'));
-
-document.getElementById('btn-signout').onclick = () => auth.signOut();
 
 // ────────────────────────────────────────────
 // Setup
