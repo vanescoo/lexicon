@@ -125,6 +125,7 @@
     .nav-btn.active { background: rgba(212,168,83,0.12); color: var(--gold); }
     .nav-btn .icon { font-size: 1rem; }
     .sidebar-foot { margin-top: auto; }
+    .app-version { font-size: 0.7rem; color: var(--muted); padding: 4px 10px 0; opacity: 0.6; }
     .main { flex: 1; overflow-y: auto; padding: 40px 44px; }
 
     /* ── Pages ── */
@@ -242,10 +243,14 @@
     .end-stat-lbl { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.09em; }
 
     /* ── Toast ── */
-    .toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 11px 20px; font-size: 0.88rem; z-index: 999; opacity: 0; transform: translateY(8px); transition: all 0.3s ease; pointer-events: none; max-width: 320px; }
-    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 11px 16px; font-size: 0.88rem; z-index: 999; opacity: 0; transform: translateY(8px); transition: all 0.3s ease; pointer-events: none; max-width: 360px; display: flex; align-items: flex-start; gap: 10px; }
+    .toast.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
     .toast.success { border-color: rgba(93,158,122,0.4); color: var(--green); }
     .toast.error { border-color: rgba(194,91,91,0.4); color: var(--red); }
+    .toast-msg { flex: 1; line-height: 1.4; word-break: break-word; }
+    .toast-actions { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+    .toast-btn { background: none; border: 1px solid currentColor; border-radius: 5px; color: inherit; cursor: pointer; font-size: 0.75rem; padding: 2px 7px; opacity: 0.75; white-space: nowrap; }
+    .toast-btn:hover { opacity: 1; }
 
     /* ── Responsive ── */
     @media (max-width: 900px) {
@@ -366,6 +371,7 @@
     </div>
     <div class="sidebar-foot">
       <button class="nav-btn" id="btn-signout"><span class="icon">👋</span><span>Sign out</span></button>
+      <div class="app-version" id="app-version-label"></div>
     </div>
   </aside>
 
@@ -536,10 +542,21 @@
 </div>
 
 <!-- ── Toast ── -->
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast">
+  <span class="toast-msg" id="toast-msg"></span>
+  <div class="toast-actions">
+    <button class="toast-btn" id="toast-copy" title="Copy message">Copy</button>
+    <button class="toast-btn" id="toast-close" title="Dismiss">✕</button>
+  </div>
+</div>
 
 <!-- ═══════════════════════════════════════════════════ -->
 <script>
+// ────────────────────────────────────────────
+// App version
+// ────────────────────────────────────────────
+const APP_VERSION = '1.1.0';
+
 // ────────────────────────────────────────────
 // 🔧  REPLACE WITH YOUR FIREBASE CONFIG
 // ────────────────────────────────────────────
@@ -694,6 +711,14 @@ document.getElementById('btn-signin').onclick = async () => {
   }
 };
 
+document.getElementById('btn-signout').onclick = async () => {
+  try {
+    await auth.signOut();
+  } catch(e) {
+    toast('Sign-out failed: ' + e.message, 'error');
+  }
+};
+
 // ────────────────────────────────────────────
 // Provider config
 // ────────────────────────────────────────────
@@ -791,6 +816,7 @@ function langName(code) {
 // App init
 // ────────────────────────────────────────────
 function initApp() {
+  document.getElementById('app-version-label').textContent = 'v' + APP_VERSION;
   const h = new Date().getHours();
   document.getElementById('home-greeting').textContent =
     h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
@@ -1181,10 +1207,14 @@ document.getElementById('btn-save-settings').onclick = async () => {
     model:       prov.model,
     apiKey:      document.getElementById('set-key').value.trim(),
   };
-  await db.collection('users').doc(currentUser.uid).set(updated);
-  profile = updated;
-  initApp();
-  toast('Settings saved!', 'success');
+  try {
+    await db.collection('users').doc(currentUser.uid).set(updated);
+    profile = updated;
+    initApp();
+    toast('Settings saved!', 'success');
+  } catch(e) {
+    toast('Failed to save settings: ' + e.message, 'error');
+  }
 };
 
 // ────────────────────────────────────────────
@@ -1216,11 +1246,29 @@ function shuffle(arr) {
 let _toastTimer;
 function toast(msg, type = '') {
   const el = document.getElementById('toast');
-  el.textContent = msg;
+  document.getElementById('toast-msg').textContent = msg;
   el.className = 'toast show ' + type;
   clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 6000);
 }
+
+document.getElementById('toast-close').onclick = () => {
+  clearTimeout(_toastTimer);
+  document.getElementById('toast').classList.remove('show');
+};
+
+document.getElementById('toast-copy').onclick = () => {
+  const msg = document.getElementById('toast-msg').textContent;
+  navigator.clipboard.writeText(msg).then(() => {
+    const btn = document.getElementById('toast-copy');
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+  }).catch(() => {
+    const btn = document.getElementById('toast-copy');
+    btn.textContent = 'Error';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+  });
+};
 </script>
 </body>
 </html>
