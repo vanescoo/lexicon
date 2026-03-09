@@ -615,13 +615,7 @@ firebase.initializeApp(FIREBASE_CONFIG);
 auth = firebase.auth();
 db   = firebase.firestore();
 
-async function initAuth() {
-  try {
-    await auth.getRedirectResult();
-  } catch(e) {
-    toast('Sign-in failed: ' + e.message, 'error');
-  }
-
+function initAuth() {
   auth.onAuthStateChanged(async u => {
     if (u) {
       currentUser = u;
@@ -643,9 +637,17 @@ async function initAuth() {
 
 initAuth();
 
-document.getElementById('btn-signin').onclick = () =>
-  auth.signInWithRedirect(new firebase.auth.GoogleAuthProvider())
-    .catch(e => toast('Sign-in failed: ' + e.message, 'error'));
+document.getElementById('btn-signin').onclick = async () => {
+  try {
+    await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+  } catch(e) {
+    if (e.code === 'auth/popup-blocked') {
+      toast('Popup blocked — please allow popups for this site and try again.', 'error');
+    } else {
+      toast('Sign-in failed: ' + e.message, 'error');
+    }
+  }
+};
 
 // ────────────────────────────────────────────
 // Setup
