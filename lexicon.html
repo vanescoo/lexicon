@@ -323,7 +323,7 @@
             <svg viewBox="0 0 24 24"><path d="M12 0C12 6.29 6.29 12 0 12C6.29 12 12 17.71 12 24C12 17.71 17.71 12 24 12C17.71 12 12 6.29 12 0Z"/></svg>
           </div>
           <div class="provider-name">Gemini</div>
-          <div class="provider-hint">gemini-2.0-flash</div>
+          <div class="provider-hint">gemini-2.5-flash</div>
         </button>
         <button class="provider-btn" data-provider="claude" onclick="selectProvider('claude','setup')">
           <div class="provider-icon">
@@ -441,7 +441,7 @@
                 <svg viewBox="0 0 24 24"><path d="M12 0C12 6.29 6.29 12 0 12C6.29 12 12 17.71 12 24C12 17.71 17.71 12 24 12C17.71 12 12 6.29 12 0Z"/></svg>
               </div>
               <div class="provider-name">Gemini</div>
-              <div class="provider-hint">gemini-2.0-flash</div>
+              <div class="provider-hint">gemini-2.5-flash</div>
             </button>
             <button class="provider-btn" data-provider="claude" onclick="selectProvider('claude','set')">
               <div class="provider-icon">
@@ -699,7 +699,7 @@ document.getElementById('btn-signin').onclick = async () => {
 // ────────────────────────────────────────────
 const PROVIDERS = {
   openai: { baseUrl: 'https://api.openai.com/v1',                              model: 'gpt-4o',            placeholder: 'sk-...' },
-  gemini: { baseUrl: 'https://generativelanguage.googleapis.com/v1beta',       model: 'gemini-2.0-flash',  placeholder: 'AIza...' },
+  gemini: { baseUrl: 'https://generativelanguage.googleapis.com/v1beta',       model: 'gemini-2.5-flash',  placeholder: 'AIza...' },
   claude: { baseUrl: 'https://api.anthropic.com',                              model: 'claude-opus-4-6',   placeholder: 'sk-ant-...' },
 };
 
