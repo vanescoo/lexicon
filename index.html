@@ -256,7 +256,10 @@
         <div class="study-title" id="study-title"></div>
         <div class="study-count" id="study-count"></div>
       </div>
-      <button class="btn btn-ghost" onclick="exitStudy()" style="padding:8px 16px;font-size:0.83rem">Exit</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-ghost btn-icon" id="btn-speaker" onclick="toggleMute()" title="Mute audio (U)"></button>
+        <button class="btn btn-ghost" onclick="exitStudy()" style="padding:8px 16px;font-size:0.83rem">Exit</button>
+      </div>
     </div>
     <div class="progress-bar"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
 
@@ -268,10 +271,22 @@
             <div class="type-badge" id="type-front"></div>
             <div class="card-text" id="card-front"></div>
             <div class="card-hint">Tap card to reveal answer</div>
+            <button class="card-speaker" onclick="event.stopPropagation(); speakCardFront()" title="Replay audio" aria-label="Replay front audio">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+              </svg>
+            </button>
           </div>
           <div class="card-face back">
             <div class="type-badge" id="type-back"></div>
             <div class="card-text" id="card-back"></div>
+            <button class="card-speaker" onclick="event.stopPropagation(); speakCardBack()" title="Replay audio" aria-label="Replay back audio">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+              </svg>
+            </button>
           </div>
         </div>
       </div>
@@ -339,6 +354,7 @@
 <script src="js/utils.js"></script>
 <script src="js/data.js"></script>
 <script src="js/render.js"></script>
+<script src="js/audio.js"></script>
 <script src="js/study.js"></script>
 <script src="js/generate.js"></script>
 <script src="js/app.js"></script>

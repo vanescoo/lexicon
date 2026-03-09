@@ -37,6 +37,8 @@ function renderStudyCard() {
   let dots = '';
   for (let i = 1; i <= 5; i++) dots += `<div class="dot ${i <= card.box ? 'on' : ''}"></div>`;
   document.getElementById('box-dots').innerHTML = dots;
+
+  autoPlayFront();
 }
 
 function flipCard() {
@@ -44,6 +46,7 @@ function flipCard() {
   flipped = true;
   document.getElementById('card-3d').classList.add('flipped');
   setTimeout(() => document.getElementById('ans-btns').classList.add('show'), 300);
+  autoPlayBack();
 }
 
 async function answerCard(correct) {
@@ -75,6 +78,7 @@ function endStudy() {
 }
 
 function exitStudy() {
+  stopSpeech();
   showScreen('dashboard');
   renderHome();
   renderCurriculum();

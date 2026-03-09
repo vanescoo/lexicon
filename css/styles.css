@@ -187,6 +187,31 @@ select option { background: #1E2235; }
 .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); }
 .dot.on { background: var(--gold); }
 
+/* Speaker / mute toggle in study header */
+.btn-icon { padding: 8px; line-height: 0; }
+.btn-icon svg { display: block; }
+
+/* Per-face replay button */
+.card-speaker {
+  position: absolute;
+  bottom: 14px;
+  right: 16px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px;
+  cursor: pointer;
+  color: var(--muted);
+  line-height: 0;
+  transition: color var(--t), border-color var(--t), background var(--t);
+}
+.card-speaker:hover {
+  color: var(--text);
+  border-color: rgba(212,168,83,0.4);
+  background: rgba(212,168,83,0.06);
+}
+.card-speaker svg { display: block; }
+
 /* Answer buttons */
 .answer-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
 .answer-btns.show { opacity: 1; pointer-events: all; }
