@@ -312,7 +312,9 @@
         <label>Model Name</label>
         <input id="setup-model" type="text" placeholder="gpt-4o" />
       </div>
-      <p class="help-text">Works with any OpenAI-compatible API: OpenAI, Groq, Together AI, Mistral, Ollama, OpenRouter, etc. Your key is stored in your private Firebase profile.</p>
+      <p class="help-text">Works with any OpenAI-compatible API (OpenAI, Groq, Together AI, Mistral, Ollama, OpenRouter, etc.) and <strong>Google Gemini</strong>.<br>
+        <strong>Gemini:</strong> URL → <code>https://generativelanguage.googleapis.com/v1beta</code>, Model → <code>gemini-2.0-flash</code>, Key → your Gemini API key.<br>
+        Your key is stored in your private Firebase profile.</p>
     </div>
 
     <button class="btn btn-primary btn-full" id="btn-setup" style="font-size:1rem;padding:14px">
@@ -924,21 +926,39 @@ RESPOND WITH ONLY A RAW JSON ARRAY. No markdown, no backticks, no explanation. E
 [{"type":"vocabulary","front":"gracias","back":"thank you"},{"type":"fill_blank","front":"Ella _____ (to eat) una manzana.","back":"Ella come una manzana."}]`;
 
   try {
-    const base = profile.apiBaseUrl.replace(/\/$/, '');
-    const res  = await fetch(`${base}/chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${profile.apiKey}` },
-      body: JSON.stringify({
-        model:       profile.model,
-        messages:    [{ role:'user', content: prompt }],
-        temperature: 0.75,
-      })
-    });
+    const base     = profile.apiBaseUrl.replace(/\/$/, '');
+    const isGemini = base.includes('generativelanguage.googleapis.com') && !base.includes('/openai');
+    let res, raw;
 
-    if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
-
-    const data = await res.json();
-    const raw  = data.choices?.[0]?.message?.content || '';
+    if (isGemini) {
+      // Native Google Gemini API
+      const geminiUrl = `${base}/models/${profile.model}:generateContent?key=${profile.apiKey}`;
+      res = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents:         [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.75 },
+        })
+      });
+      if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+      const data = await res.json();
+      raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    } else {
+      // OpenAI-compatible API
+      res = await fetch(`${base}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${profile.apiKey}` },
+        body: JSON.stringify({
+          model:       profile.model,
+          messages:    [{ role:'user', content: prompt }],
+          temperature: 0.75,
+        })
+      });
+      if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+      const data = await res.json();
+      raw = data.choices?.[0]?.message?.content || '';
+    }
     const json = raw.replace(/```json|```/g, '').trim();
     const cards = JSON.parse(json);
     if (!Array.isArray(cards)) throw new Error('Response was not a JSON array');
