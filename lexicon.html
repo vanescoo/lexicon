@@ -181,8 +181,12 @@
 
     /* ── Level section ── */
     .level-section { margin-bottom: 44px; }
-    .level-hd { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .level-hd { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
     .level-hd h2 { font-family: var(--font-d); font-size: 1.4rem; font-weight: 600; }
+    .level-progress { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 0.75rem; color: var(--muted); }
+    .level-progress-bar { width: 120px; height: 5px; background: var(--border); border-radius: 100px; overflow: hidden; }
+    .level-progress-fill { height: 100%; background: var(--gold); border-radius: 100px; transition: width 0.5s ease; }
+    .level-progress-fill.complete { background: #5D9E7A; }
 
     /* ── Settings ── */
     .settings-wrap { max-width: 580px; display: grid; gap: 18px; }
@@ -385,7 +389,7 @@
 
       <div class="stats-row">
         <div class="stat-card"><div class="stat-val" id="stat-due">—</div><div class="stat-lbl">Due Today</div></div>
-        <div class="stat-card"><div class="stat-val" id="stat-total">—</div><div class="stat-lbl">Total Cards</div></div>
+        <div class="stat-card"><div class="stat-val" id="stat-total">—</div><div class="stat-lbl">Words Learned</div></div>
         <div class="stat-card"><div class="stat-val" id="stat-topics">—</div><div class="stat-lbl">Topics Started</div></div>
         <div class="stat-card"><div class="stat-val" id="stat-mastered">—</div><div class="stat-lbl">Box 5 (Mastered)</div></div>
       </div>
@@ -644,6 +648,15 @@ const CURRICULUM = [
 
 const LEVEL_NAMES = { A1:'Foundations', A2:'Building Blocks', B1:'Intermediate', B2:'Upper Intermediate', C1:'Advanced', C2:'Mastery' };
 
+// Cumulative word milestones to "pass" each level
+const LEVEL_WORD_TARGETS    = { A1: 750,  A2: 1500, B1: 2500, B2: 5000,  C1: 8000,  C2: 16000 };
+// Words each level adds on top of previous (incremental requirement)
+const LEVEL_WORD_INCREMENTS = { A1: 750,  A2: 750,  B1: 1000, B2: 2500,  C1: 3000,  C2: 8000  };
+// Minimum words to master per topic  (increment / 10 topics per level)
+const TOPIC_WORD_TARGETS    = { A1: 75,   A2: 75,   B1: 100,  B2: 250,   C1: 300,   C2: 800   };
+// Sensible default generation count when opening a topic modal
+const TOPIC_GEN_DEFAULTS    = { A1: 10,   A2: 10,   B1: 20,   B2: 30,    C1: 30,    C2: 30    };
+
 // Leitner review intervals in days (index = box number)
 const INTERVALS = [0, 1, 2, 4, 8, 16];
 
@@ -805,7 +818,7 @@ function isUnlocked(topic) {
   if (!prev) return true;
   const s = topicStats[prev.id];
   if (!s || s.total === 0) return topic.order <= 2;
-  return (s.advanced / s.total) >= 0.6;
+  return s.advanced >= TOPIC_WORD_TARGETS[prev.level];
 }
 
 function langName(code) {
@@ -841,8 +854,10 @@ function renderHome() {
   const mastered = allCards.filter(c => c.box === 5).length;
   const started  = new Set(allCards.map(c => c.topicId)).size;
 
+  const wordsLearned = allCards.filter(c => c.box >= 3).length;
+
   document.getElementById('stat-due').textContent      = due.length;
-  document.getElementById('stat-total').textContent    = allCards.length;
+  document.getElementById('stat-total').textContent    = wordsLearned;
   document.getElementById('stat-topics').textContent   = started;
   document.getElementById('stat-mastered').textContent = mastered;
 
@@ -883,9 +898,10 @@ function renderHome() {
 }
 
 function topicCardHTML(t) {
-  const s   = topicStats[t.id] || {total:0, advanced:0};
-  const pct = s.total ? Math.round((s.advanced / s.total) * 100) : 0;
-  const due = dueCards(t.id).length;
+  const s      = topicStats[t.id] || {total:0, advanced:0};
+  const target = TOPIC_WORD_TARGETS[t.level];
+  const pct    = Math.min(100, Math.round((s.advanced / target) * 100));
+  const due    = dueCards(t.id).length;
   return `
     <div class="topic-card" onclick="openGenModal('${t.id}')">
       <div class="topic-card-top">
@@ -893,7 +909,7 @@ function topicCardHTML(t) {
         ${due > 0 ? `<span class="due-chip">${due} due</span>` : ''}
       </div>
       <div class="topic-name">${t.name}</div>
-      <div class="topic-meta"><span>${s.total} cards</span><span>${pct}% advanced</span></div>
+      <div class="topic-meta"><span>${s.advanced}/${target} words</span><span>${pct}%</span></div>
       <div class="topic-bar"><div class="topic-fill" style="width:${pct}%"></div></div>
     </div>`;
 }
@@ -904,30 +920,42 @@ function topicCardHTML(t) {
 function renderCurriculum() {
   const levels = ['A1','A2','B1','B2','C1','C2'];
   document.getElementById('curriculum-body').innerHTML = levels.map(lvl => {
-    const topics = CURRICULUM.filter(t => t.level === lvl);
+    const topics        = CURRICULUM.filter(t => t.level === lvl);
+    const lvlAdvanced   = topics.reduce((sum, t) => sum + (topicStats[t.id]?.advanced || 0), 0);
+    const lvlIncrement  = LEVEL_WORD_INCREMENTS[lvl];
+    const lvlPct        = Math.min(100, Math.round((lvlAdvanced / lvlIncrement) * 100));
+    const lvlComplete   = lvlAdvanced >= lvlIncrement;
+    const topicTarget   = TOPIC_WORD_TARGETS[lvl];
     return `
       <div class="level-section">
         <div class="level-hd">
           <span class="lvl lvl-${lvl}">${lvl}</span>
           <h2>${LEVEL_NAMES[lvl]}</h2>
+          <div class="level-progress">
+            <span>${lvlAdvanced}/${lvlIncrement} words</span>
+            <div class="level-progress-bar">
+              <div class="level-progress-fill${lvlComplete?' complete':''}" style="width:${lvlPct}%"></div>
+            </div>
+            <span>${lvlPct}%</span>
+          </div>
         </div>
         <div class="topics-grid">
           ${topics.map(t => {
             const unlocked = isUnlocked(t);
             const s   = topicStats[t.id] || {total:0, advanced:0};
-            const pct = s.total ? Math.round((s.advanced/s.total)*100) : 0;
+            const pct = Math.min(100, Math.round((s.advanced / topicTarget) * 100));
             const due = dueCards(t.id).length;
             return `
               <div class="topic-card ${unlocked?'':'locked'}"
                 onclick="${unlocked ? `openGenModal('${t.id}')` : ''}"
-                title="${unlocked ? '' : 'Complete the previous topic to unlock'}">
+                title="${unlocked ? '' : `Master ${topicTarget} words in the previous topic to unlock`}">
                 ${!unlocked ? '<div class="lock-icon">🔒</div>' : ''}
                 <div class="topic-card-top">
                   <span class="lvl lvl-${t.level}">${t.level}</span>
                   ${due>0 ? `<span class="due-chip">${due} due</span>` : ''}
                 </div>
                 <div class="topic-name">${t.name}</div>
-                <div class="topic-meta"><span>${s.total} cards</span><span>${pct}%</span></div>
+                <div class="topic-meta"><span>${s.advanced}/${topicTarget} words</span><span>${pct}%</span></div>
                 <div class="topic-bar"><div class="topic-fill" style="width:${pct}%"></div></div>
               </div>`;
           }).join('')}
@@ -942,14 +970,18 @@ function renderCurriculum() {
 function openGenModal(topicId) {
   const topic = CURRICULUM.find(t => t.id === topicId);
   if (!topic) return;
-  genTopicId  = topicId;
-  genCount    = 10;
+  genTopicId = topicId;
+  genCount   = TOPIC_GEN_DEFAULTS[topic.level];
+
+  const topicTarget = TOPIC_WORD_TARGETS[topic.level];
+  const s           = topicStats[topicId] || {total:0, advanced:0};
 
   document.getElementById('gen-title').textContent = topic.name;
-  document.getElementById('gen-sub').textContent   = `${topic.level} · ${langName(profile.targetLanguage)}`;
+  document.getElementById('gen-sub').textContent   =
+    `${topic.level} · ${langName(profile.targetLanguage)} · Target: ${topicTarget} words (${s.advanced} mastered)`;
   document.getElementById('gen-form').style.display    = 'block';
   document.getElementById('gen-loading').style.display = 'none';
-  document.querySelectorAll('.cnt-btn').forEach((b,i) => b.classList.toggle('sel', i===1));
+  document.querySelectorAll('.cnt-btn').forEach(b => b.classList.toggle('sel', +b.textContent === genCount));
 
   // Inject a Study button if there are due cards
   const due = dueCards(topicId);
