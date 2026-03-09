@@ -26,8 +26,8 @@
 
   💡 LLM CORS NOTE
   This app makes direct browser → LLM API calls.
-  Works out-of-the-box with: OpenAI, Groq, Together AI, Ollama (with CORS enabled)
-  For Anthropic API: you'll need a small proxy (or use OpenRouter as base URL)
+  Works out-of-the-box with: OpenAI, Google Gemini, Anthropic Claude,
+  Groq, Together AI, Ollama (with CORS enabled), and OpenRouter.
   ═══════════════════════════════════════════════════════════
   -->
 
@@ -102,6 +102,16 @@
     select option { background: #1E2235; }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .help-text { font-size: 0.78rem; color: var(--muted); line-height: 1.6; margin-top: 12px; }
+
+    /* ── Provider picker ── */
+    .provider-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 20px; }
+    .provider-btn { background: var(--surface2); border: 2px solid var(--border); border-radius: var(--radius); padding: 18px 8px 14px; cursor: pointer; transition: var(--t); text-align: center; color: var(--muted); font-family: var(--font-ui); width: 100%; }
+    .provider-btn:hover { border-color: rgba(212,168,83,0.3); color: var(--text); }
+    .provider-btn.sel { border-color: var(--gold); background: rgba(212,168,83,0.06); color: var(--text); }
+    .provider-icon { width: 32px; height: 32px; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; }
+    .provider-icon svg { width: 100%; height: 100%; fill: currentColor; }
+    .provider-name { font-size: 0.85rem; font-weight: 600; line-height: 1; }
+    .provider-hint { font-size: 0.65rem; color: var(--muted); margin-top: 5px; font-family: monospace; }
 
     /* ── App Layout ── */
     #screen-dashboard { flex-direction: row; }
@@ -299,20 +309,34 @@
     </div>
 
     <div class="card-block">
-      <h3>🤖 AI Configuration</h3>
-      <div class="form-group">
-        <label>API Base URL</label>
-        <input id="setup-url" type="text" placeholder="https://api.openai.com/v1" />
+      <h3>🤖 AI Provider</h3>
+      <div class="provider-grid" id="setup-provider-grid">
+        <button class="provider-btn sel" data-provider="openai" onclick="selectProvider('openai','setup')">
+          <div class="provider-icon">
+            <svg viewBox="0 0 24 24"><path d="M22.28 9.82a5.98 5.98 0 0 0-.52-4.91 6.05 6.05 0 0 0-6.51-2.9A6.07 6.07 0 0 0 4.98 4.18a5.98 5.98 0 0 0-4 2.9 6.05 6.05 0 0 0 .74 7.1 5.98 5.98 0 0 0 .51 4.91 6.05 6.05 0 0 0 6.51 2.9A5.98 5.98 0 0 0 13.26 24a6.06 6.06 0 0 0 5.77-4.21 5.99 5.99 0 0 0 4-2.9 6.06 6.06 0 0 0-.75-7.07zM13.26 22.43a4.48 4.48 0 0 1-2.88-1.04l.14-.08 4.78-2.76a.79.79 0 0 0 .4-.68v-6.74l2.02 1.17a.07.07 0 0 1 .04.05v5.58a4.5 4.5 0 0 1-4.5 4.5zM3.6 18.3a4.47 4.47 0 0 1-.53-3.01l.14.08 4.78 2.76a.77.77 0 0 0 .78 0l5.84-3.37v2.33a.08.08 0 0 1-.03.06L9.74 19.95A4.5 4.5 0 0 1 3.6 18.3zM2.34 7.9a4.49 4.49 0 0 1 2.37-1.97v5.68a.77.77 0 0 0 .39.68l5.81 3.35-2.02 1.17a.08.08 0 0 1-.07 0L4.02 13.9A4.5 4.5 0 0 1 2.34 7.9zm16.6 3.86-5.85-3.37 2.02-1.17a.08.08 0 0 1 .07 0l4.83 2.79a4.49 4.49 0 0 1-.68 8.1V12a.79.79 0 0 0-.39-.24zm2.01-3.02-.14-.09-4.77-2.78a.78.78 0 0 0-.79 0L9.41 9.23V6.9a.07.07 0 0 1 .03-.06l4.83-2.79a4.5 4.5 0 0 1 6.68 4.66zM8.31 12.86 6.29 11.7a.08.08 0 0 1-.04-.06V6.07a4.5 4.5 0 0 1 7.38-3.45l-.14.08-4.78 2.76a.79.79 0 0 0-.4.68zm1.1-2.37 2.6-1.5 2.6 1.5v3L12 15l-2.6-1.5z"/></svg>
+          </div>
+          <div class="provider-name">OpenAI</div>
+          <div class="provider-hint">gpt-4o</div>
+        </button>
+        <button class="provider-btn" data-provider="gemini" onclick="selectProvider('gemini','setup')">
+          <div class="provider-icon">
+            <svg viewBox="0 0 24 24"><path d="M12 0C12 6.29 6.29 12 0 12C6.29 12 12 17.71 12 24C12 17.71 17.71 12 24 12C17.71 12 12 6.29 12 0Z"/></svg>
+          </div>
+          <div class="provider-name">Gemini</div>
+          <div class="provider-hint">gemini-2.0-flash</div>
+        </button>
+        <button class="provider-btn" data-provider="claude" onclick="selectProvider('claude','setup')">
+          <div class="provider-icon">
+            <svg viewBox="0 0 24 24"><path d="M17.32 0H6.68L0 24h4.98l1.45-5.39h11.13L18.95 24H24L17.32 0zM7.99 14.6 12 0l4 14.6H8z"/></svg>
+          </div>
+          <div class="provider-name">Claude</div>
+          <div class="provider-hint">claude-opus-4-6</div>
+        </button>
       </div>
       <div class="form-group">
         <label>API Key</label>
         <input id="setup-key" type="password" placeholder="sk-..." />
       </div>
-      <div class="form-group">
-        <label>Model Name</label>
-        <input id="setup-model" type="text" placeholder="gpt-4o" />
-      </div>
-      <p class="help-text">Works with any OpenAI-compatible API: OpenAI, Groq, Together AI, Mistral, Ollama, OpenRouter, etc. Your key is stored in your private Firebase profile.</p>
     </div>
 
     <button class="btn btn-primary btn-full" id="btn-setup" style="font-size:1rem;padding:14px">
@@ -403,10 +427,31 @@
           </div>
         </div>
         <div class="card-block">
-          <h3 style="font-family:var(--font-d);font-size:1.15rem;margin-bottom:18px;padding-bottom:12px;border-bottom:1px solid var(--border);color:var(--text)">AI Configuration</h3>
-          <div class="form-group"><label>API Base URL</label><input id="set-url" type="text" /></div>
+          <h3 style="font-family:var(--font-d);font-size:1.15rem;margin-bottom:18px;padding-bottom:12px;border-bottom:1px solid var(--border);color:var(--text)">AI Provider</h3>
+          <div class="provider-grid" id="set-provider-grid">
+            <button class="provider-btn" data-provider="openai" onclick="selectProvider('openai','set')">
+              <div class="provider-icon">
+                <svg viewBox="0 0 24 24"><path d="M22.28 9.82a5.98 5.98 0 0 0-.52-4.91 6.05 6.05 0 0 0-6.51-2.9A6.07 6.07 0 0 0 4.98 4.18a5.98 5.98 0 0 0-4 2.9 6.05 6.05 0 0 0 .74 7.1 5.98 5.98 0 0 0 .51 4.91 6.05 6.05 0 0 0 6.51 2.9A5.98 5.98 0 0 0 13.26 24a6.06 6.06 0 0 0 5.77-4.21 5.99 5.99 0 0 0 4-2.9 6.06 6.06 0 0 0-.75-7.07zM13.26 22.43a4.48 4.48 0 0 1-2.88-1.04l.14-.08 4.78-2.76a.79.79 0 0 0 .4-.68v-6.74l2.02 1.17a.07.07 0 0 1 .04.05v5.58a4.5 4.5 0 0 1-4.5 4.5zM3.6 18.3a4.47 4.47 0 0 1-.53-3.01l.14.08 4.78 2.76a.77.77 0 0 0 .78 0l5.84-3.37v2.33a.08.08 0 0 1-.03.06L9.74 19.95A4.5 4.5 0 0 1 3.6 18.3zM2.34 7.9a4.49 4.49 0 0 1 2.37-1.97v5.68a.77.77 0 0 0 .39.68l5.81 3.35-2.02 1.17a.08.08 0 0 1-.07 0L4.02 13.9A4.5 4.5 0 0 1 2.34 7.9zm16.6 3.86-5.85-3.37 2.02-1.17a.08.08 0 0 1 .07 0l4.83 2.79a4.49 4.49 0 0 1-.68 8.1V12a.79.79 0 0 0-.39-.24zm2.01-3.02-.14-.09-4.77-2.78a.78.78 0 0 0-.79 0L9.41 9.23V6.9a.07.07 0 0 1 .03-.06l4.83-2.79a4.5 4.5 0 0 1 6.68 4.66zM8.31 12.86 6.29 11.7a.08.08 0 0 1-.04-.06V6.07a4.5 4.5 0 0 1 7.38-3.45l-.14.08-4.78 2.76a.79.79 0 0 0-.4.68zm1.1-2.37 2.6-1.5 2.6 1.5v3L12 15l-2.6-1.5z"/></svg>
+              </div>
+              <div class="provider-name">OpenAI</div>
+              <div class="provider-hint">gpt-4o</div>
+            </button>
+            <button class="provider-btn" data-provider="gemini" onclick="selectProvider('gemini','set')">
+              <div class="provider-icon">
+                <svg viewBox="0 0 24 24"><path d="M12 0C12 6.29 6.29 12 0 12C6.29 12 12 17.71 12 24C12 17.71 17.71 12 24 12C17.71 12 12 6.29 12 0Z"/></svg>
+              </div>
+              <div class="provider-name">Gemini</div>
+              <div class="provider-hint">gemini-2.0-flash</div>
+            </button>
+            <button class="provider-btn" data-provider="claude" onclick="selectProvider('claude','set')">
+              <div class="provider-icon">
+                <svg viewBox="0 0 24 24"><path d="M17.32 0H6.68L0 24h4.98l1.45-5.39h11.13L18.95 24H24L17.32 0zM7.99 14.6 12 0l4 14.6H8z"/></svg>
+              </div>
+              <div class="provider-name">Claude</div>
+              <div class="provider-hint">claude-opus-4-6</div>
+            </button>
+          </div>
           <div class="form-group"><label>API Key</label><input id="set-key" type="password" /></div>
-          <div class="form-group"><label>Model Name</label><input id="set-model" type="text" /></div>
         </div>
         <button class="btn btn-primary" id="btn-save-settings" style="width:fit-content;padding:12px 32px">Save Changes</button>
       </div>
@@ -650,6 +695,31 @@ document.getElementById('btn-signin').onclick = async () => {
 };
 
 // ────────────────────────────────────────────
+// Provider config
+// ────────────────────────────────────────────
+const PROVIDERS = {
+  openai: { baseUrl: 'https://api.openai.com/v1',                              model: 'gpt-4o',            placeholder: 'sk-...' },
+  gemini: { baseUrl: 'https://generativelanguage.googleapis.com/v1beta',       model: 'gemini-2.0-flash',  placeholder: 'AIza...' },
+  claude: { baseUrl: 'https://api.anthropic.com',                              model: 'claude-opus-4-6',   placeholder: 'sk-ant-...' },
+};
+
+function detectProvider(p) {
+  if (p.provider && PROVIDERS[p.provider]) return p.provider;
+  const u = p.apiBaseUrl || '';
+  if (u.includes('anthropic.com'))                    return 'claude';
+  if (u.includes('generativelanguage.googleapis.com')) return 'gemini';
+  return 'openai';
+}
+
+function selectProvider(id, ctx) {
+  const grid = document.getElementById(ctx + '-provider-grid');
+  if (!grid) return;
+  grid.querySelectorAll('.provider-btn').forEach(b => b.classList.toggle('sel', b.dataset.provider === id));
+  const keyInput = document.getElementById(ctx + '-key');
+  if (keyInput) keyInput.placeholder = PROVIDERS[id]?.placeholder || '';
+}
+
+// ────────────────────────────────────────────
 // Setup
 // ────────────────────────────────────────────
 function fillLangSelects(ids) {
@@ -664,12 +734,13 @@ function fillLangSelects(ids) {
 document.getElementById('btn-setup').onclick = async () => {
   const n = document.getElementById('setup-native').value;
   const t = document.getElementById('setup-target').value;
-  const u = document.getElementById('setup-url').value.trim();
   const k = document.getElementById('setup-key').value.trim();
-  const m = document.getElementById('setup-model').value.trim();
-  if (!u || !k || !m) { toast('Please fill in all AI settings', 'error'); return; }
+  const provBtn = document.querySelector('#setup-provider-grid .provider-btn.sel');
+  const providerId = provBtn?.dataset.provider || 'openai';
+  const prov = PROVIDERS[providerId];
+  if (!k) { toast('Please enter your API key', 'error'); return; }
   if (n === t) { toast('Native and target language must differ', 'error'); return; }
-  profile = { nativeLanguage:n, targetLanguage:t, apiBaseUrl:u, apiKey:k, model:m, createdAt: Date.now() };
+  profile = { nativeLanguage:n, targetLanguage:t, provider:providerId, apiBaseUrl:prov.baseUrl, model:prov.model, apiKey:k, createdAt: Date.now() };
   await db.collection('users').doc(currentUser.uid).set(profile);
   await loadCards();
   showScreen('dashboard');
@@ -729,9 +800,8 @@ function initApp() {
     `Your complete ${langName(profile.targetLanguage)} path — 60 topics across 6 CEFR levels`;
 
   fillLangSelects(['set-native','set-target']);
-  document.getElementById('set-url').value   = profile.apiBaseUrl || '';
-  document.getElementById('set-key').value   = profile.apiKey     || '';
-  document.getElementById('set-model').value = profile.model      || '';
+  selectProvider(detectProvider(profile), 'set');
+  document.getElementById('set-key').value = profile.apiKey || '';
 
   renderHome();
   renderCurriculum();
@@ -924,21 +994,58 @@ RESPOND WITH ONLY A RAW JSON ARRAY. No markdown, no backticks, no explanation. E
 [{"type":"vocabulary","front":"gracias","back":"thank you"},{"type":"fill_blank","front":"Ella _____ (to eat) una manzana.","back":"Ella come una manzana."}]`;
 
   try {
-    const base = profile.apiBaseUrl.replace(/\/$/, '');
-    const res  = await fetch(`${base}/chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${profile.apiKey}` },
-      body: JSON.stringify({
-        model:       profile.model,
-        messages:    [{ role:'user', content: prompt }],
-        temperature: 0.75,
-      })
-    });
+    const base     = profile.apiBaseUrl.replace(/\/$/, '');
+    const isGemini = base.includes('generativelanguage.googleapis.com') && !base.includes('/openai');
+    const isClaude = base.includes('anthropic.com');
+    let res, raw;
 
-    if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
-
-    const data = await res.json();
-    const raw  = data.choices?.[0]?.message?.content || '';
+    if (isGemini) {
+      // Native Google Gemini API
+      const geminiUrl = `${base}/models/${profile.model}:generateContent?key=${profile.apiKey}`;
+      res = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents:         [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.75 },
+        })
+      });
+      if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+      const data = await res.json();
+      raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    } else if (isClaude) {
+      // Anthropic Claude API
+      res = await fetch(`${base}/v1/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type':    'application/json',
+          'x-api-key':       profile.apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model:      profile.model,
+          max_tokens: 4096,
+          messages:   [{ role: 'user', content: prompt }],
+        })
+      });
+      if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+      const data = await res.json();
+      raw = data.content?.[0]?.text || '';
+    } else {
+      // OpenAI-compatible API
+      res = await fetch(`${base}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${profile.apiKey}` },
+        body: JSON.stringify({
+          model:       profile.model,
+          messages:    [{ role:'user', content: prompt }],
+          temperature: 0.75,
+        })
+      });
+      if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+      const data = await res.json();
+      raw = data.choices?.[0]?.message?.content || '';
+    }
     const json = raw.replace(/```json|```/g, '').trim();
     const cards = JSON.parse(json);
     if (!Array.isArray(cards)) throw new Error('Response was not a JSON array');
@@ -1062,13 +1169,17 @@ function exitStudy() {
 // Settings
 // ────────────────────────────────────────────
 document.getElementById('btn-save-settings').onclick = async () => {
+  const provBtn = document.querySelector('#set-provider-grid .provider-btn.sel');
+  const providerId = provBtn?.dataset.provider || detectProvider(profile);
+  const prov = PROVIDERS[providerId];
   const updated = {
     ...profile,
     nativeLanguage: document.getElementById('set-native').value,
     targetLanguage: document.getElementById('set-target').value,
-    apiBaseUrl:     document.getElementById('set-url').value.trim(),
-    apiKey:         document.getElementById('set-key').value.trim(),
-    model:          document.getElementById('set-model').value.trim(),
+    provider:    providerId,
+    apiBaseUrl:  prov.baseUrl,
+    model:       prov.model,
+    apiKey:      document.getElementById('set-key').value.trim(),
   };
   await db.collection('users').doc(currentUser.uid).set(updated);
   profile = updated;
