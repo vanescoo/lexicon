@@ -442,25 +442,20 @@
     <div id="pl-view-loading" style="display:none">
       <div class="pl-center-wrap">
         <div class="spinner"></div>
-        <p id="pl-loading-msg" style="color:var(--muted);font-size:0.9rem">Generating questions…</p>
+        <p id="pl-loading-msg" style="color:var(--muted);font-size:0.9rem">Loading your levelling test…</p>
       </div>
     </div>
 
     <!-- Question -->
     <div id="pl-view-question" style="display:none">
+      <div class="pl-q-header">
+        <span class="lvl lvl-A2" id="pl-level-badge">A2</span>
+        <span class="pl-progress-txt" id="pl-progress-txt">Question 1 of 15</span>
+      </div>
       <div class="pl-progress-bar"><div class="pl-prog-fill" id="pl-prog-fill"></div></div>
-      <div class="pl-progress-txt" id="pl-progress-txt">A1 · 1 / 10</div>
       <div class="pl-prompt">What does this word mean?</div>
       <div class="pl-word" id="pl-word">goedemorgen</div>
       <div class="pl-answer-grid" id="pl-answer-btns"></div>
-    </div>
-
-    <!-- Transition -->
-    <div id="pl-view-transition" style="display:none">
-      <div class="pl-center-wrap">
-        <div style="font-size:3rem;margin-bottom:12px">🚀</div>
-        <p id="pl-transition-msg" style="font-size:1.05rem;color:var(--muted)"></p>
-      </div>
     </div>
 
     <!-- Result -->
@@ -468,9 +463,8 @@
       <div class="pl-center-wrap">
         <div style="font-size:3rem;margin-bottom:8px">🎉</div>
         <div class="pl-result-label">Your level</div>
-        <div class="pl-result-level" id="pl-result-level">A2</div>
+        <div class="pl-result-level lvl lvl-A2" id="pl-result-level">A2</div>
         <p class="pl-result-sub" id="pl-result-sub"></p>
-        <p class="pl-result-score" id="pl-result-score"></p>
       </div>
     </div>
 

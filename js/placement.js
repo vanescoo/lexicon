@@ -1,22 +1,33 @@
 // ─────────────────────────────────────────────────────────────
-// Placement Test — onboarding flow for users with zero cards
-// Adaptive: A1 → A2 → B1, advance on ≥80%, stop otherwise.
+// Placement Test — adaptive test across all CEFR levels
+//
+// Flow:
+//  1. "Take Levelling Test" → single API call fetches 5 questions
+//     for every CEFR level (A1–C2) simultaneously while showing
+//     "Loading your levelling test…"
+//  2. Test starts at A2; each correct answer bumps the level up,
+//     each wrong answer drops it down.
+//  3. After 15 questions, placement = mode of all levels tested,
+//     capped at B1 (highest curriculum level).
+//  4. Result: unlock detected level + auto-generate first topic.
 // ─────────────────────────────────────────────────────────────
 
-const PLACEMENT_LEVELS         = ['A1', 'A2', 'B1'];
-const PLACEMENT_PASS_THRESHOLD = 0.8;   // ≥80% correct → advance to next level
-const PLACEMENT_Q_COUNT        = 10;    // questions per level
+const PLACEMENT_ALL_LEVELS  = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+const PLACEMENT_CURRICULUM  = ['A1', 'A2', 'B1'];
+const PLACEMENT_TOTAL_Q     = 15;
+const PLACEMENT_Q_PER_LEVEL = 5;
+const PLACEMENT_START_LEVEL = 'A2';
 
-let _plLevel     = null;   // current level being tested
-let _plQuestions = [];     // question list for current level
-let _plIdx       = 0;      // index of current question
-let _plCorrect   = 0;      // correct answers this level
-let _plOptions   = [];     // shuffled answer options for current question
+let _plAllQ     = {};   // { A1:[...], A2:[...], ... } — pre-fetched questions
+let _plUsed     = {};   // { A1: 0, A2: 3, ... }       — pool index per level
+let _plCurLevel = null; // current difficulty level
+let _plCurQ     = null; // current question object
+let _plOptions  = [];   // shuffled answer options for current question
+let _plHistory  = [];   // [{ level, correct }, ...] one entry per answered Q
 
 // ── Entry point ──────────────────────────────────────────────
 
 function showPlacementModal() {
-  _plLevel = null;
   setPlView('choice');
   document.getElementById('placement-modal').classList.add('open');
 }
@@ -29,41 +40,37 @@ async function placementSkip() {
 }
 
 async function placementStartTest() {
-  _plLevel = 'A1';
-  await _runLevel();
-}
-
-// ── Level runner ─────────────────────────────────────────────
-
-async function _runLevel() {
   setPlView('loading');
-  document.getElementById('pl-loading-msg').textContent =
-    `Generating ${_plLevel} questions…`;
   try {
-    _plQuestions = await _fetchQuestions(_plLevel);
-    _plIdx     = 0;
-    _plCorrect = 0;
+    _plAllQ     = await _fetchAllQuestions();
+    _plUsed     = {};
+    _plCurLevel = PLACEMENT_START_LEVEL;
+    _plHistory  = [];
     _showQuestion();
   } catch (e) {
-    toast('Failed to generate test questions: ' + e.message, 'error');
+    toast('Failed to load test: ' + e.message, 'error');
     setPlView('choice');
   }
 }
 
-async function _fetchQuestions(level) {
+// ── Fetch all levels at once ──────────────────────────────────
+
+async function _fetchAllQuestions() {
   const native = langName(profile.nativeLanguage);
   const target = langName(profile.targetLanguage);
 
   const prompt =
-`You are a language test designer. Generate exactly ${PLACEMENT_Q_COUNT} multiple-choice vocabulary questions to test a ${native} speaker's ${target} knowledge at CEFR level ${level}.
+`You are a language test designer. Generate vocabulary questions to assess a ${native} speaker's ${target} proficiency across all 6 CEFR levels.
+
+For each level (A1, A2, B1, B2, C1, C2) provide exactly ${PLACEMENT_Q_PER_LEVEL} multiple-choice questions.
 
 Each question must have:
-- "word": a ${target} word or short phrase typical of CEFR ${level}
+- "word": a ${target} word or short phrase characteristic of that CEFR level
 - "correct": the correct ${native} translation
 - "distractors": exactly 3 wrong ${native} translations that are plausible but clearly distinct
 
-RESPOND WITH ONLY A RAW JSON ARRAY. No markdown, no explanation:
-[{"word":"...","correct":"...","distractors":["...","...","..."]}]`;
+RESPOND WITH ONLY A RAW JSON OBJECT. No markdown, no explanation:
+{"A1":[{"word":"...","correct":"...","distractors":["...","...","..."]},...], "A2":[...], "B1":[...], "B2":[...], "C1":[...], "C2":[...]}`;
 
   const base     = profile.apiBaseUrl.replace(/\/$/, '');
   const isGemini = base.includes('generativelanguage.googleapis.com') && !base.includes('/openai');
@@ -90,7 +97,7 @@ RESPOND WITH ONLY A RAW JSON ARRAY. No markdown, no explanation:
       },
       body: JSON.stringify({
         model:      profile.model,
-        max_tokens: 2048,
+        max_tokens: 4096,
         messages:   [{ role: 'user', content: prompt }],
       }),
     });
@@ -101,36 +108,42 @@ RESPOND WITH ONLY A RAW JSON ARRAY. No markdown, no explanation:
     res = await fetch(`${base}/chat/completions`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${profile.apiKey}` },
-      body:    JSON.stringify({
-        model:    profile.model,
-        messages: [{ role: 'user', content: prompt }],
-      }),
+      body:    JSON.stringify({ model: profile.model, messages: [{ role: 'user', content: prompt }] }),
     });
     if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
     raw = (await res.json()).choices?.[0]?.message?.content || '';
   }
 
   const json = raw.replace(/```json|```/g, '').trim();
-  const qs   = JSON.parse(json);
-  if (!Array.isArray(qs) || qs.length === 0) throw new Error('Invalid response format');
-  return qs;
+  const data = JSON.parse(json);
+  if (typeof data !== 'object' || !data.A1) throw new Error('Invalid response format');
+  return data;
 }
 
-// ── Question UI ──────────────────────────────────────────────
+// ── Adaptive question rendering ───────────────────────────────
 
 function _showQuestion() {
-  if (_plIdx >= _plQuestions.length) { _finishLevel(); return; }
+  const answered = _plHistory.length;
+  if (answered >= PLACEMENT_TOTAL_Q) { _computeAndFinalize(); return; }
 
   setPlView('question');
-  const q = _plQuestions[_plIdx];
 
-  document.getElementById('pl-word').textContent = q.word;
-  document.getElementById('pl-progress-txt').textContent =
-    `${_plLevel} · ${_plIdx + 1} / ${_plQuestions.length}`;
-  document.getElementById('pl-prog-fill').style.width =
-    `${(_plIdx / _plQuestions.length) * 100}%`;
+  // Draw next question from the pool for the current level (wrap if exhausted)
+  const pool  = _plAllQ[_plCurLevel] || [];
+  const idx   = _plUsed[_plCurLevel] || 0;
+  _plCurQ = pool[idx % Math.max(pool.length, 1)];
+  _plUsed[_plCurLevel] = idx + 1;
 
-  _plOptions = [q.correct, ...q.distractors].sort(() => Math.random() - 0.5);
+  // Level badge
+  const badge = document.getElementById('pl-level-badge');
+  badge.textContent = _plCurLevel;
+  badge.className   = `lvl lvl-${_plCurLevel}`;
+
+  document.getElementById('pl-word').textContent         = _plCurQ.word;
+  document.getElementById('pl-progress-txt').textContent = `Question ${answered + 1} of ${PLACEMENT_TOTAL_Q}`;
+  document.getElementById('pl-prog-fill').style.width    = `${(answered / PLACEMENT_TOTAL_Q) * 100}%`;
+
+  _plOptions = [_plCurQ.correct, ..._plCurQ.distractors].sort(() => Math.random() - 0.5);
 
   const btns = document.getElementById('pl-answer-btns');
   btns.innerHTML = _plOptions
@@ -141,15 +154,15 @@ function _showQuestion() {
 }
 
 function answerPlacement(btn) {
-  const optIdx  = parseInt(btn.dataset.idx);
-  const chosen  = _plOptions[optIdx];
-  const correct = _plQuestions[_plIdx].correct;
+  const optIdx    = parseInt(btn.dataset.idx);
+  const chosen    = _plOptions[optIdx];
+  const correct   = _plCurQ.correct;
+  const isCorrect = chosen === correct;
 
   document.querySelectorAll('.pl-answer-btn').forEach(b => b.disabled = true);
 
-  if (chosen === correct) {
+  if (isCorrect) {
     btn.classList.add('pl-correct');
-    _plCorrect++;
   } else {
     btn.classList.add('pl-wrong');
     document.querySelectorAll('.pl-answer-btn').forEach(b => {
@@ -157,40 +170,50 @@ function answerPlacement(btn) {
     });
   }
 
-  _plIdx++;
+  // Record answer and shift difficulty
+  _plHistory.push({ level: _plCurLevel, correct: isCorrect });
+  const i = PLACEMENT_ALL_LEVELS.indexOf(_plCurLevel);
+  _plCurLevel = isCorrect
+    ? PLACEMENT_ALL_LEVELS[Math.min(i + 1, PLACEMENT_ALL_LEVELS.length - 1)]
+    : PLACEMENT_ALL_LEVELS[Math.max(i - 1, 0)];
+
   setTimeout(_showQuestion, 700);
 }
 
-// ── Level result ─────────────────────────────────────────────
+// ── Compute final placement from history ──────────────────────
 
-async function _finishLevel() {
-  const pct    = _plCorrect / _plQuestions.length;
-  const curIdx = PLACEMENT_LEVELS.indexOf(_plLevel);
-  const isLast = curIdx >= PLACEMENT_LEVELS.length - 1;
+function _computeAndFinalize() {
+  // Count how many questions were asked at each level
+  const counts = {};
+  _plHistory.forEach(h => { counts[h.level] = (counts[h.level] || 0) + 1; });
 
-  if (pct >= PLACEMENT_PASS_THRESHOLD && !isLast) {
-    const next = PLACEMENT_LEVELS[curIdx + 1];
-    setPlView('transition');
-    document.getElementById('pl-transition-msg').innerHTML =
-      `<strong>${Math.round(pct * 100)}%</strong> on ${_plLevel} — moving to ${next}…`;
-    _plLevel = next;
-    setTimeout(_runLevel, 1800);
-  } else {
-    await _finalizePlacement(_plLevel, Math.round(pct * 100));
-  }
+  // Mode level (lowest wins on tie → conservative placement)
+  let modeLevel = PLACEMENT_ALL_LEVELS[0];
+  let modeCount = 0;
+  PLACEMENT_ALL_LEVELS.forEach(l => {
+    if ((counts[l] || 0) > modeCount) { modeCount = counts[l]; modeLevel = l; }
+  });
+
+  // Cap to highest curriculum level (B1)
+  const cappedIdx  = Math.min(PLACEMENT_ALL_LEVELS.indexOf(modeLevel), PLACEMENT_CURRICULUM.length - 1);
+  const finalLevel = PLACEMENT_CURRICULUM[cappedIdx];
+
+  _finalizePlacement(finalLevel);
 }
 
-async function _finalizePlacement(level, pct) {
+async function _finalizePlacement(level) {
   setPlView('result');
-  document.getElementById('pl-result-level').textContent = level;
+
+  const badge = document.getElementById('pl-result-level');
+  badge.textContent = level;
+  badge.className   = `pl-result-level lvl-${level}`;
 
   const subtitles = {
     A1: 'Starting from the foundations — a great place to begin!',
     A2: 'You know your basics well. Starting at A2 Building Blocks.',
     B1: 'Strong vocabulary! Starting at B1 Intermediate.',
   };
-  document.getElementById('pl-result-sub').textContent   = subtitles[level];
-  document.getElementById('pl-result-score').textContent = `Score: ${pct}% on ${level}`;
+  document.getElementById('pl-result-sub').textContent = subtitles[level];
 
   await _savePlacement(level !== 'A1' ? level : null);
 
@@ -232,15 +255,13 @@ async function _savePlacement(level) {
   await db.collection('users').doc(currentUser.uid).set(profile);
 }
 
-// ── View switcher ────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────
 
 function setPlView(view) {
-  ['choice', 'loading', 'question', 'transition', 'result', 'generating'].forEach(v => {
+  ['choice', 'loading', 'question', 'result', 'generating'].forEach(v => {
     document.getElementById(`pl-view-${v}`).style.display = v === view ? '' : 'none';
   });
 }
-
-// ── HTML escaping ─────────────────────────────────────────────
 
 function escHtml(s) {
   return String(s)
