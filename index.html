@@ -313,6 +313,34 @@
   </div>
 </div>
 
+<!-- ── Topic Inspector Modal ── -->
+<div class="overlay" id="topic-inspector-modal" onclick="handleTopicInspectorOverlayClick(event)">
+  <div class="modal modal-wide">
+    <div class="ti-header">
+      <div class="ti-header-left">
+        <span id="ti-topic-level" class="lvl"></span>
+        <h2 id="ti-topic-name"></h2>
+      </div>
+      <button class="btn btn-ghost btn-icon" onclick="closeTopicInspector()" title="Close" style="font-size:1.2rem;padding:6px 12px">✕</button>
+    </div>
+    <div class="modal-sub" id="ti-topic-sub"></div>
+    <div class="ti-action-bar" id="ti-action-bar"></div>
+    <div class="leitner-table-wrap" style="margin-top:16px">
+      <table class="leitner-table">
+        <thead>
+          <tr>
+            <th>Word</th>
+            <th>Translation</th>
+            <th>Box</th>
+            <th>Next Review</th>
+          </tr>
+        </thead>
+        <tbody id="ti-table-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <!-- ── Leitner Box Inspector Modal ── -->
 <div class="overlay" id="leitner-modal" onclick="handleLeitnerOverlayClick(event)">
   <div class="modal modal-wide">
@@ -404,6 +432,7 @@
 <script src="js/render.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/study.js"></script>
+<script src="js/topic-inspector.js"></script>
 <script src="js/leitner.js"></script>
 <script src="js/topics.js"></script>
 <script src="js/generate.js"></script>

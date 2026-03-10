@@ -50,6 +50,16 @@ function renderHome() {
     : `<p style="color:var(--muted)">Visit Curriculum to start your first topic.</p>`;
 }
 
+// Routes topic card click: inspector if already generated, gen modal if not yet
+function openTopicCard(topicId) {
+  const s = topicStats[topicId] || { total: 0, advanced: 0 };
+  if (s.total > 0) {
+    openTopicInspector(topicId);
+  } else {
+    openGenModal(topicId);
+  }
+}
+
 // Returns the HTML string for a single topic card (used in Home and Curriculum)
 function topicCardHTML(t) {
   const s      = topicStats[t.id] || { total: 0, advanced: 0 };
@@ -57,7 +67,7 @@ function topicCardHTML(t) {
   const pct    = Math.min(100, Math.round((s.advanced / target) * 100));
   const due    = dueCards(t.id).length;
   return `
-    <div class="topic-card" onclick="openGenModal('${t.id}')">
+    <div class="topic-card" onclick="openTopicCard('${t.id}')">
       <div class="topic-card-top">
         <span class="lvl lvl-${t.level}">${t.level}</span>
         ${due > 0 ? `<span class="due-chip">${due} due</span>` : ''}
@@ -100,7 +110,7 @@ function renderCurriculum() {
             const due = dueCards(t.id).length;
             return `
               <div class="topic-card ${levelUnlocked ? '' : 'locked'}"
-                onclick="${levelUnlocked ? `openGenModal('${t.id}')` : ''}"
+                onclick="${levelUnlocked ? `openTopicCard('${t.id}')` : ''}"
                 title="${levelUnlocked ? '' : `Master ${threshold} words in ${lvl === 'A2' ? 'A1' : 'A2'} (75%) to unlock this level`}">
                 ${!levelUnlocked ? '<div class="lock-icon">🔒</div>' : ''}
                 <div class="topic-card-top">
