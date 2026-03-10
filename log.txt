@@ -7,3 +7,4 @@
 [2026-03-10] v1.4.1 – Add Gemini TTS via generateContent AUDIO modality (gemini-2.5-flash-preview-tts); PCM→WAV conversion for browser playback; only Claude falls back to Web Speech
 [2026-03-10] v1.4.2 – Fix card flip to toggle unlimited times with audio each side; switch LLM TTS to Web Audio API (AudioContext) fixing autoplay block on cards 2+ and volume ramp
 [2026-03-10] v1.4.3 – Fix audio overlap: AbortController cancels in-flight TTS fetch on flip/advance; sequence ID (_seqId) drops stale audio that arrives after a newer request started
+[2026-03-10] v1.4.4 – Fix back-side audio: speak only card.back on flip, not card.front then card.back
