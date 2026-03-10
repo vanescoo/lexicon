@@ -382,7 +382,11 @@
 
     <div id="gen-loading" class="gen-loading" style="display:none">
       <div class="spinner"></div>
-      Generating with AI… this takes 10–20 seconds
+      <span id="gen-loading-msg">Generating with AI… this takes 10–20 seconds</span>
+      <div id="gen-audio-prog" style="display:none;width:100%;margin-top:8px">
+        <div class="audio-prog-bar"><div class="audio-prog-fill" id="gen-audio-fill"></div></div>
+        <span id="gen-audio-label" class="audio-prog-label"></span>
+      </div>
     </div>
   </div>
 </div>
@@ -473,6 +477,10 @@
       <div class="pl-center-wrap">
         <div class="spinner"></div>
         <p id="pl-gen-msg" style="color:var(--muted);font-size:0.9rem">Generating first topic…</p>
+        <div id="pl-audio-prog" style="display:none;width:100%;max-width:280px">
+          <div class="audio-prog-bar"><div class="audio-prog-fill" id="pl-audio-fill"></div></div>
+          <span id="pl-audio-label" class="audio-prog-label"></span>
+        </div>
       </div>
     </div>
 
@@ -494,6 +502,7 @@
 <script src="js/utils.js"></script>
 <script src="js/data.js"></script>
 <script src="js/render.js"></script>
+<script src="js/audio-cache.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/study.js"></script>
 <script src="js/topic-inspector.js"></script>

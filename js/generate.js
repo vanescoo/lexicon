@@ -60,7 +60,7 @@ function handleOverlayClick(e) {
 }
 
 // ── Core generation: API call + Firestore write ───────────────
-// Returns the number of cards written. Throws on error.
+// Returns { count, newCards } where newCards = [{ id, front, back }, ...].
 async function generateCardsCore(topicId) {
   const topic  = getTopics().find(t => t.id === topicId);
   const native = langName(profile.nativeLanguage);
@@ -149,9 +149,10 @@ RESPOND WITH ONLY A RAW JSON ARRAY. No markdown, no backticks, no explanation. E
   if (!Array.isArray(cards)) throw new Error('Response was not a JSON array');
 
   const existingSet = new Set(existingFronts.map(f => f.toLowerCase()));
-  const now   = Date.now();
-  const batch = db.batch();
-  let written = 0;
+  const now      = Date.now();
+  const batch    = db.batch();
+  const newCards = [];
+
   cards.forEach(c => {
     if (!c.front || !c.back || !c.type) return;
     if (existingSet.has(String(c.front).toLowerCase())) return;
@@ -168,29 +169,50 @@ RESPOND WITH ONLY A RAW JSON ARRAY. No markdown, no backticks, no explanation. E
       createdAt:      now,
       lastReviewedAt: null,
     });
-    written++;
+    newCards.push({ id: ref.id, front: String(c.front), back: String(c.back) });
   });
+
   await batch.commit();
-  return written;
+  return { count: newCards.length, newCards };
 }
 
 // ── Modal-wrapped generation ──────────────────────────────────
 async function generateCards(mode) {
   if (!genTopicId) return;
 
-  document.getElementById('gen-form').style.display    = 'none';
-  document.getElementById('gen-loading').style.display = 'block';
+  const loadingEl = document.getElementById('gen-loading');
+  const msgEl     = document.getElementById('gen-loading-msg');
+  const progWrap  = document.getElementById('gen-audio-prog');
+  const progFill  = document.getElementById('gen-audio-fill');
+  const progLabel = document.getElementById('gen-audio-label');
+
+  document.getElementById('gen-form').style.display = 'none';
+  loadingEl.style.display  = 'block';
+  msgEl.textContent        = 'Generating with AI… this takes 10–20 seconds';
+  progWrap.style.display   = 'none';
 
   try {
-    const count = await generateCardsCore(genTopicId);
-    closeModal();
+    const { count, newCards } = await generateCardsCore(genTopicId);
     await loadCards();
     renderHome();
     renderCurriculum();
+
+    // Pre-cache TTS audio for all new cards
+    if (newCards.length > 0 && _ttsProvider() !== 'none') {
+      msgEl.textContent      = 'Pre-loading audio…';
+      progWrap.style.display = 'block';
+      await preCacheCardAudio(newCards, (done, total) => {
+        progFill.style.width  = `${done / total * 100}%`;
+        progLabel.textContent = `${done} / ${total} clips`;
+      });
+    }
+
+    closeModal();
     toast(`${count} cards generated!`, 'success');
+
   } catch (e) {
-    document.getElementById('gen-form').style.display    = 'block';
-    document.getElementById('gen-loading').style.display = 'none';
+    document.getElementById('gen-form').style.display = 'block';
+    loadingEl.style.display = 'none';
     toast('Generation failed: ' + e.message, 'error');
     console.error(e);
   }

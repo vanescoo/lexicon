@@ -227,12 +227,30 @@ async function _finalizePlacement(level) {
 
 async function _autoGenerate(topic) {
   setPlView('generating');
-  document.getElementById('pl-gen-msg').textContent = `Generating "${topic.name}"…`;
+
+  const msgEl    = document.getElementById('pl-gen-msg');
+  const progWrap = document.getElementById('pl-audio-prog');
+  const progFill = document.getElementById('pl-audio-fill');
+  const progLabel= document.getElementById('pl-audio-label');
+
+  msgEl.textContent      = `Generating "${topic.name}"…`;
+  progWrap.style.display = 'none';
 
   try {
-    const count = await generateCardsCore(topic.id);
-    document.getElementById('placement-modal').classList.remove('open');
+    const { count, newCards } = await generateCardsCore(topic.id);
     await loadCards();
+
+    // Pre-cache TTS audio for all new cards
+    if (newCards.length > 0 && _ttsProvider() !== 'none') {
+      msgEl.textContent      = 'Pre-loading audio…';
+      progWrap.style.display = '';
+      await preCacheCardAudio(newCards, (done, total) => {
+        progFill.style.width  = `${done / total * 100}%`;
+        progLabel.textContent = `${done} / ${total} clips`;
+      });
+    }
+
+    document.getElementById('placement-modal').classList.remove('open');
     renderHome();
     renderCurriculum();
     toast(
