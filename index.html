@@ -240,6 +240,11 @@
           <div class="form-group"><label>API Key</label><input id="set-key" type="password" /></div>
         </div>
         <button class="btn btn-primary" id="btn-save-settings" style="width:fit-content;padding:12px 32px">Save Changes</button>
+        <div class="card-block" style="margin-top:24px">
+          <h3 style="font-family:var(--font-d);font-size:1.15rem;margin-bottom:10px;padding-bottom:12px;border-bottom:1px solid var(--border);color:var(--text)">Levelling Test</h3>
+          <p style="color:var(--muted);font-size:0.88rem;margin-bottom:16px">Retake the adaptive placement test to update your starting level across all 6 CEFR levels.</p>
+          <button class="btn btn-ghost" onclick="showPlacementModal(true)" style="width:fit-content">Retake Levelling Test 🎯</button>
+        </div>
         <div class="card-block" style="margin-top:24px;border-color:rgba(194,91,91,0.25)">
           <h3 style="font-family:var(--font-d);font-size:1.15rem;margin-bottom:10px;padding-bottom:12px;border-bottom:1px solid rgba(194,91,91,0.2);color:var(--red)">Danger Zone</h3>
           <p style="color:var(--muted);font-size:0.88rem;margin-bottom:16px">Permanently erase progress for a course. This cannot be undone.</p>
@@ -421,7 +426,8 @@
 
 <!-- ── Placement Modal ── -->
 <div class="overlay" id="placement-modal">
-  <div class="modal placement-modal-inner">
+  <div class="modal placement-modal-inner" style="position:relative">
+    <button class="pl-close-btn" onclick="closePlacementModal()" title="Close">✕</button>
 
     <!-- Choice -->
     <div id="pl-view-choice">

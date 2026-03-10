@@ -292,6 +292,8 @@ select option { background: #1E2235; }
 #placement-modal { pointer-events: none; }
 #placement-modal.open { pointer-events: all; }
 .placement-modal-inner { max-width: 480px; padding: 40px; text-align: center; }
+.pl-close-btn { position: absolute; top: 14px; right: 14px; background: none; border: none; cursor: pointer; color: var(--muted); font-size: 1rem; padding: 5px 9px; border-radius: 6px; transition: var(--t); line-height: 1; }
+.pl-close-btn:hover { color: var(--text); background: var(--surface2); }
 
 .pl-brand { font-family: var(--font-d); font-size: 2.4rem; font-weight: 700; letter-spacing: -1px; margin-bottom: 4px; }
 .pl-brand span { color: var(--gold); }
