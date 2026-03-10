@@ -7,7 +7,7 @@
 //         [YYYY-MM-DD] vX.Y.Z – short description of committed changes
 //    3. Commit BOTH this file and log.txt together with each PR/push.
 //    The version string is displayed to users in the UI; keep it current.
-const APP_VERSION = '1.7.0';
+const APP_VERSION = '1.7.1';
 
 // ─────────────────────────────────────────────────────────────
 // Firebase — replace with your project's config
