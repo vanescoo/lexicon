@@ -30,7 +30,7 @@ function renderHome() {
   for (let b = 1; b <= 5; b++) {
     const cnt = allCards.filter(c => c.box === b).length;
     row.innerHTML += `
-      <div class="leitner-box">
+      <div class="leitner-box" onclick="openLeitnerModal(${b})" title="View cards in Box ${b}">
         <div class="leitner-box-val">${cnt}</div>
         <div class="leitner-box-name">Box ${b}</div>
         <div class="leitner-box-interval">every ${INTERVALS[b]}d</div>

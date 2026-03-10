@@ -313,6 +313,33 @@
   </div>
 </div>
 
+<!-- ── Leitner Box Inspector Modal ── -->
+<div class="overlay" id="leitner-modal" onclick="handleLeitnerOverlayClick(event)">
+  <div class="modal modal-wide">
+    <div class="leitner-modal-hd">
+      <div>
+        <h2 id="leitner-modal-title"></h2>
+        <div class="modal-sub" id="leitner-modal-sub"></div>
+      </div>
+      <button class="btn btn-ghost btn-icon" onclick="closeLeitnerModal()" title="Close" style="font-size:1.2rem;padding:6px 12px">✕</button>
+    </div>
+    <div class="leitner-table-wrap">
+      <table class="leitner-table">
+        <thead>
+          <tr>
+            <th>Word</th>
+            <th>Translation</th>
+            <th>Level</th>
+            <th>Topic</th>
+            <th>Next Review</th>
+          </tr>
+        </thead>
+        <tbody id="leitner-table-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <!-- ── Generate Modal ── -->
 <div class="overlay" id="gen-modal" onclick="handleOverlayClick(event)">
   <div class="modal">
@@ -377,6 +404,7 @@
 <script src="js/render.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/study.js"></script>
+<script src="js/leitner.js"></script>
 <script src="js/topics.js"></script>
 <script src="js/generate.js"></script>
 <script src="js/app.js"></script>

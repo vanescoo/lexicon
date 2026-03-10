@@ -156,6 +156,24 @@ select option { background: #1E2235; }
 /* ── Settings ── */
 .settings-wrap { max-width: 580px; display: grid; gap: 18px; }
 
+/* ── Leitner Inspector Modal ── */
+.modal-wide { max-width: 760px; }
+.leitner-modal-hd { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.leitner-modal-hd .modal-sub { margin-bottom: 20px; }
+.leitner-table-wrap { overflow-x: auto; margin-top: 4px; }
+.leitner-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.leitner-table th { text-align: left; padding: 8px 12px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; color: var(--muted); border-bottom: 1px solid var(--border); white-space: nowrap; }
+.leitner-table td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
+.leitner-table tr:last-child td { border-bottom: none; }
+.leitner-table tr:hover td { background: rgba(255,255,255,0.03); }
+.lt-front { font-weight: 600; }
+.lt-back  { color: var(--muted); }
+.lt-topic { color: var(--muted); font-size: 0.8rem; }
+.lt-due   { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+.lt-due.due-now { color: var(--gold); font-weight: 600; }
+.leitner-box { cursor: pointer; transition: var(--t); }
+.leitner-box:hover { border-color: rgba(212,168,83,0.4); transform: translateY(-2px); }
+
 /* ── Generate Modal ── */
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.72); display: none; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(6px); padding: 20px; }
 .overlay.open { display: flex; }
