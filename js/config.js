@@ -7,7 +7,7 @@
 //         [YYYY-MM-DD] vX.Y.Z – short description of committed changes
 //    3. Commit BOTH this file and log.txt together with each PR/push.
 //    The version string is displayed to users in the UI; keep it current.
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.6.0';
 
 // ─────────────────────────────────────────────────────────────
 // Firebase — replace with your project's config
@@ -23,7 +23,10 @@ const FIREBASE_CONFIG = {
 };
 
 // ─────────────────────────────────────────────────────────────
-// CURRICULUM — 60 hardcoded topics across 6 CEFR levels
+// CURRICULUM — 42 topics across 3 CEFR levels
+//   A1: 12 topics × 20 words
+//   A2: 12 topics × 40 words
+//   B1: 18 topics × 60 words
 // ─────────────────────────────────────────────────────────────
 const CURRICULUM = [
   // A1 — Foundations
@@ -37,61 +40,40 @@ const CURRICULUM = [
   { id:'a1_08', level:'A1', order:8,  name:'Basic Verbs — To Be & To Have' },
   { id:'a1_09', level:'A1', order:9,  name:'Body Parts' },
   { id:'a1_10', level:'A1', order:10, name:'Weather & Climate' },
+  { id:'a1_11', level:'A1', order:11, name:'Common Verbs — Daily Actions' },
+  { id:'a1_12', level:'A1', order:12, name:'Objects Around the House' },
   // A2 — Building Blocks
-  { id:'a2_01', level:'A2', order:11, name:'Shopping & Prices' },
-  { id:'a2_02', level:'A2', order:12, name:'Travel & Transport' },
-  { id:'a2_03', level:'A2', order:13, name:'Home & Rooms' },
-  { id:'a2_04', level:'A2', order:14, name:'Clothing & Fashion' },
-  { id:'a2_05', level:'A2', order:15, name:'Hobbies & Free Time' },
-  { id:'a2_06', level:'A2', order:16, name:'Simple Past Tense' },
-  { id:'a2_07', level:'A2', order:17, name:'Simple Future' },
-  { id:'a2_08', level:'A2', order:18, name:'Descriptive Adjectives' },
-  { id:'a2_09', level:'A2', order:19, name:'Prepositions of Place & Time' },
-  { id:'a2_10', level:'A2', order:20, name:'Asking Questions' },
+  { id:'a2_01', level:'A2', order:13, name:'Shopping & Prices' },
+  { id:'a2_02', level:'A2', order:14, name:'Travel & Transport' },
+  { id:'a2_03', level:'A2', order:15, name:'Home & Rooms' },
+  { id:'a2_04', level:'A2', order:16, name:'Clothing & Fashion' },
+  { id:'a2_05', level:'A2', order:17, name:'Hobbies & Free Time' },
+  { id:'a2_06', level:'A2', order:18, name:'Simple Past Tense' },
+  { id:'a2_07', level:'A2', order:19, name:'Simple Future' },
+  { id:'a2_08', level:'A2', order:20, name:'Descriptive Adjectives' },
+  { id:'a2_09', level:'A2', order:21, name:'Prepositions of Place & Time' },
+  { id:'a2_10', level:'A2', order:22, name:'Asking Questions' },
+  { id:'a2_11', level:'A2', order:23, name:'Health & the Doctor' },
+  { id:'a2_12', level:'A2', order:24, name:'School & Learning' },
   // B1 — Intermediate
-  { id:'b1_01', level:'B1', order:21, name:'Work & Professions' },
-  { id:'b1_02', level:'B1', order:22, name:'Health & the Body' },
-  { id:'b1_03', level:'B1', order:23, name:'Expressing Opinions' },
-  { id:'b1_04', level:'B1', order:24, name:'Conditional Sentences' },
-  { id:'b1_05', level:'B1', order:25, name:'Subjunctive & Mood Intro' },
-  { id:'b1_06', level:'B1', order:26, name:'Culture & Traditions' },
-  { id:'b1_07', level:'B1', order:27, name:'Environment & Nature' },
-  { id:'b1_08', level:'B1', order:28, name:'Technology & Devices' },
-  { id:'b1_09', level:'B1', order:29, name:'Relationships & Emotions' },
-  { id:'b1_10', level:'B1', order:30, name:'Linking & Complex Sentences' },
-  // B2 — Upper Intermediate
-  { id:'b2_01', level:'B2', order:31, name:'Abstract Nouns' },
-  { id:'b2_02', level:'B2', order:32, name:'Advanced Conditionals' },
-  { id:'b2_03', level:'B2', order:33, name:'Passive Voice' },
-  { id:'b2_04', level:'B2', order:34, name:'Idioms & Expressions' },
-  { id:'b2_05', level:'B2', order:35, name:'News & Media Language' },
-  { id:'b2_06', level:'B2', order:36, name:'Politics & Society' },
-  { id:'b2_07', level:'B2', order:37, name:'Science & Research' },
-  { id:'b2_08', level:'B2', order:38, name:'Literature & Arts' },
-  { id:'b2_09', level:'B2', order:39, name:'Advanced Verb Forms' },
-  { id:'b2_10', level:'B2', order:40, name:'Nuance, Register & Tone' },
-  // C1 — Advanced
-  { id:'c1_01', level:'C1', order:41, name:'Formal Writing & Register' },
-  { id:'c1_02', level:'C1', order:42, name:'Rhetoric & Persuasion' },
-  { id:'c1_03', level:'C1', order:43, name:'Regional Dialects & Accents' },
-  { id:'c1_04', level:'C1', order:44, name:'False Friends & Pitfalls' },
-  { id:'c1_05', level:'C1', order:45, name:'Advanced Grammar Structures' },
-  { id:'c1_06', level:'C1', order:46, name:'Philosophy & Abstract Ideas' },
-  { id:'c1_07', level:'C1', order:47, name:'Economics & Finance' },
-  { id:'c1_08', level:'C1', order:48, name:'Advanced Idioms & Metaphors' },
-  { id:'c1_09', level:'C1', order:49, name:'Collocations & Word Pairs' },
-  { id:'c1_10', level:'C1', order:50, name:'Style & Register Shifting' },
-  // C2 — Mastery
-  { id:'c2_01', level:'C2', order:51, name:'Native Flow & Expressions' },
-  { id:'c2_02', level:'C2', order:52, name:'Proverbs & Sayings' },
-  { id:'c2_03', level:'C2', order:53, name:'Literary & Poetic Style' },
-  { id:'c2_04', level:'C2', order:54, name:'Academic & Scholarly Language' },
-  { id:'c2_05', level:'C2', order:55, name:'Humor & Wordplay' },
-  { id:'c2_06', level:'C2', order:56, name:'Slang & Colloquialisms' },
-  { id:'c2_07', level:'C2', order:57, name:'Complex Syntax' },
-  { id:'c2_08', level:'C2', order:58, name:'Rare & Elevated Vocabulary' },
-  { id:'c2_09', level:'C2', order:59, name:'Cultural References & Allusions' },
-  { id:'c2_10', level:'C2', order:60, name:'Full Mastery Review' },
+  { id:'b1_01', level:'B1', order:25, name:'Work & Professions' },
+  { id:'b1_02', level:'B1', order:26, name:'Health & the Body' },
+  { id:'b1_03', level:'B1', order:27, name:'Expressing Opinions' },
+  { id:'b1_04', level:'B1', order:28, name:'Conditional Sentences' },
+  { id:'b1_05', level:'B1', order:29, name:'Subjunctive & Mood Intro' },
+  { id:'b1_06', level:'B1', order:30, name:'Culture & Traditions' },
+  { id:'b1_07', level:'B1', order:31, name:'Environment & Nature' },
+  { id:'b1_08', level:'B1', order:32, name:'Technology & Devices' },
+  { id:'b1_09', level:'B1', order:33, name:'Relationships & Emotions' },
+  { id:'b1_10', level:'B1', order:34, name:'Linking & Complex Sentences' },
+  { id:'b1_11', level:'B1', order:35, name:'Travel & Holidays' },
+  { id:'b1_12', level:'B1', order:36, name:'Food & Restaurants' },
+  { id:'b1_13', level:'B1', order:37, name:'Sports & Fitness' },
+  { id:'b1_14', level:'B1', order:38, name:'Media & Entertainment' },
+  { id:'b1_15', level:'B1', order:39, name:'Money & Finance' },
+  { id:'b1_16', level:'B1', order:40, name:'Environment & Climate Change' },
+  { id:'b1_17', level:'B1', order:41, name:'Social Issues & Society' },
+  { id:'b1_18', level:'B1', order:42, name:'Formal & Informal Register' },
 ];
 
 // ─────────────────────────────────────────────────────────────
@@ -101,22 +83,23 @@ const LEVEL_NAMES = {
   A1: 'Foundations',
   A2: 'Building Blocks',
   B1: 'Intermediate',
-  B2: 'Upper Intermediate',
-  C1: 'Advanced',
-  C2: 'Mastery',
 };
 
 // ─────────────────────────────────────────────────────────────
 // Word targets per CEFR level
 //   LEVEL_WORD_TARGETS    — cumulative words needed to "pass" a level
 //   LEVEL_WORD_INCREMENTS — words each level adds on top of the previous
-//   TOPIC_WORD_TARGETS    — minimum advanced cards per topic (increment / 10)
-//   TOPIC_GEN_DEFAULTS    — sensible default card count in the generation modal
+//   TOPIC_WORD_TARGETS    — words generated per topic (also the unlock unit)
+//
+// A1: 12 topics × 20 words =  240 words
+// A2: 12 topics × 40 words =  480 words  (cumulative: 720)
+// B1: 18 topics × 60 words = 1080 words  (cumulative: 1800)
+//
+// Next level unlocks when 75% of the previous level's words are mastered.
 // ─────────────────────────────────────────────────────────────
-const LEVEL_WORD_TARGETS    = { A1:  750, A2: 1500, B1:  2500, B2:  5000, C1:  8000, C2: 16000 };
-const LEVEL_WORD_INCREMENTS = { A1:  750, A2:  750, B1:  1000, B2:  2500, C1:  3000, C2:  8000 };
-const TOPIC_WORD_TARGETS    = { A1:   75, A2:   75, B1:   100, B2:   250, C1:   300, C2:   800 };
-const TOPIC_GEN_DEFAULTS    = { A1:   10, A2:   10, B1:    20, B2:    30, C1:    30, C2:    30 };
+const LEVEL_WORD_TARGETS    = { A1:  240, A2:  720, B1: 1800 };
+const LEVEL_WORD_INCREMENTS = { A1:  240, A2:  480, B1: 1080 };
+const TOPIC_WORD_TARGETS    = { A1:   20, A2:   40, B1:   60 };
 
 // ─────────────────────────────────────────────────────────────
 // Leitner review intervals in days (index = box number)

@@ -69,7 +69,7 @@ function topicCardHTML(t) {
 }
 
 function renderCurriculum() {
-  const levels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+  const levels = ['A1', 'A2', 'B1'];
   document.getElementById('curriculum-body').innerHTML = levels.map(lvl => {
     const topics       = CURRICULUM.filter(t => t.level === lvl);
     const lvlAdvanced  = topics.reduce((sum, t) => sum + (topicStats[t.id]?.advanced || 0), 0);
@@ -77,6 +77,8 @@ function renderCurriculum() {
     const lvlPct       = Math.min(100, Math.round((lvlAdvanced / lvlIncrement) * 100));
     const lvlComplete  = lvlAdvanced >= lvlIncrement;
     const topicTarget  = TOPIC_WORD_TARGETS[lvl];
+    const levelUnlocked = isUnlocked(topics[0]);
+    const threshold    = Math.floor(lvlIncrement * 0.75);
 
     return `
       <div class="level-section">
@@ -93,15 +95,14 @@ function renderCurriculum() {
         </div>
         <div class="topics-grid">
           ${topics.map(t => {
-            const unlocked = isUnlocked(t);
             const s   = topicStats[t.id] || { total: 0, advanced: 0 };
             const pct = Math.min(100, Math.round((s.advanced / topicTarget) * 100));
             const due = dueCards(t.id).length;
             return `
-              <div class="topic-card ${unlocked ? '' : 'locked'}"
-                onclick="${unlocked ? `openGenModal('${t.id}')` : ''}"
-                title="${unlocked ? '' : `Master ${topicTarget} words in the previous topic to unlock`}">
-                ${!unlocked ? '<div class="lock-icon">🔒</div>' : ''}
+              <div class="topic-card ${levelUnlocked ? '' : 'locked'}"
+                onclick="${levelUnlocked ? `openGenModal('${t.id}')` : ''}"
+                title="${levelUnlocked ? '' : `Master ${threshold} words in ${lvl === 'A2' ? 'A1' : 'A2'} (75%) to unlock this level`}">
+                ${!levelUnlocked ? '<div class="lock-icon">🔒</div>' : ''}
                 <div class="topic-card-top">
                   <span class="lvl lvl-${t.level}">${t.level}</span>
                   ${due > 0 ? `<span class="due-chip">${due} due</span>` : ''}
