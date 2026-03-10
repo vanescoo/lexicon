@@ -2,15 +2,27 @@
 // Data layer — Firestore operations & derived data helpers
 // ─────────────────────────────────────────────────────────────
 
+// Returns the full topic list: built-in curriculum + user custom topics
+function getTopics() {
+  return [...CURRICULUM, ...customTopics];
+}
+
 async function loadCards() {
   const snap = await db.collection('users').doc(currentUser.uid).collection('cards').get();
   allCards = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   recomputeStats();
 }
 
+async function loadCustomTopics() {
+  const snap = await db.collection('users').doc(currentUser.uid).collection('customTopics').get();
+  customTopics = snap.docs.map(d => d.data());
+  customTopics.sort((a, b) => a.order - b.order);
+  recomputeStats();
+}
+
 function recomputeStats() {
   topicStats = {};
-  CURRICULUM.forEach(t => { topicStats[t.id] = { total: 0, advanced: 0 }; });
+  getTopics().forEach(t => { topicStats[t.id] = { total: 0, advanced: 0 }; });
   allCards.forEach(c => {
     if (!topicStats[c.topicId]) return;
     topicStats[c.topicId].total++;
@@ -35,7 +47,7 @@ function isUnlocked(topic) {
   const levelIdx   = levelOrder.indexOf(topic.level);
   if (levelIdx <= 0) return true;
   const prevLevel    = levelOrder[levelIdx - 1];
-  const prevTopics   = CURRICULUM.filter(t => t.level === prevLevel);
+  const prevTopics   = getTopics().filter(t => t.level === prevLevel);
   const prevAdvanced = prevTopics.reduce((sum, t) => sum + (topicStats[t.id]?.advanced || 0), 0);
   const threshold    = Math.floor(LEVEL_WORD_INCREMENTS[prevLevel] * 0.75);
   return prevAdvanced >= threshold;

@@ -131,6 +131,9 @@ select option { background: #1E2235; }
 .topic-fill { height: 100%; background: var(--gold); border-radius: 100px; transition: width 0.5s ease; }
 .due-chip { font-size: 0.68rem; font-weight: 700; color: var(--gold); }
 .lock-icon { position: absolute; top: 12px; right: 12px; opacity: 0.5; font-size: 0.85rem; }
+.topic-card-add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border-style: dashed; color: var(--muted); min-height: 100px; }
+.topic-card-add:hover { border-color: rgba(212,168,83,0.5); color: var(--gold); transform: translateY(-2px); }
+.topic-add-icon { font-size: 1.5rem; font-weight: 300; line-height: 1; }
 
 /* ── Level badge ── */
 .lvl { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; padding: 3px 8px; border-radius: 100px; }

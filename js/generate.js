@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────
 
 function openGenModal(topicId) {
-  const topic = CURRICULUM.find(t => t.id === topicId);
+  const topic = getTopics().find(t => t.id ===topicId);
   if (!topic) return;
 
   genTopicId = topicId;
@@ -62,7 +62,7 @@ function handleOverlayClick(e) {
 async function generateCards(mode) {
   if (!genTopicId) return;
 
-  const topic  = CURRICULUM.find(t => t.id === genTopicId);
+  const topic  = getTopics().find(t => t.id ===genTopicId);
   const native = langName(profile.nativeLanguage);
   const target = langName(profile.targetLanguage);
   const count  = TOPIC_WORD_TARGETS[topic.level];

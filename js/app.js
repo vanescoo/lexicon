@@ -136,7 +136,7 @@ function initApp() {
   document.getElementById('home-sub').textContent  =
     `Your ${langName(profile.targetLanguage)} learning overview`;
   document.getElementById('cur-sub').textContent   =
-    `Your complete ${langName(profile.targetLanguage)} path — 60 topics across 6 CEFR levels`;
+    `Your complete ${langName(profile.targetLanguage)} path · ${getTopics().length} topics across 3 CEFR levels`;
 
   fillSettingsLangSelects();
   selectProvider(detectProvider(profile), 'set');
@@ -157,6 +157,7 @@ function initAuth() {
       if (doc.exists) {
         profile = doc.data();
         await loadCards();
+        await loadCustomTopics();
         showScreen('dashboard');
         initApp();
       } else {
@@ -215,6 +216,7 @@ document.getElementById('btn-setup').onclick = async () => {
   };
   await db.collection('users').doc(currentUser.uid).set(profile);
   await loadCards();
+  await loadCustomTopics();
   showScreen('dashboard');
   initApp();
 };

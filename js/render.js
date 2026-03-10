@@ -38,11 +38,11 @@ function renderHome() {
   }
 
   // Active / recent topics
-  const active = CURRICULUM
+  const active = getTopics()
     .filter(t => isUnlocked(t) && topicStats[t.id]?.total > 0)
     .slice(-6)
     .reverse();
-  const firstUnlocked = CURRICULUM.find(t => isUnlocked(t) && topicStats[t.id]?.total === 0);
+  const firstUnlocked = getTopics().find(t => isUnlocked(t) && topicStats[t.id]?.total === 0);
   const showTopics    = active.length > 0 ? active : (firstUnlocked ? [firstUnlocked] : []);
 
   document.getElementById('recent-topics').innerHTML = showTopics.length
@@ -71,7 +71,7 @@ function topicCardHTML(t) {
 function renderCurriculum() {
   const levels = ['A1', 'A2', 'B1'];
   document.getElementById('curriculum-body').innerHTML = levels.map(lvl => {
-    const topics       = CURRICULUM.filter(t => t.level === lvl);
+    const topics       = getTopics().filter(t => t.level === lvl);
     const lvlAdvanced  = topics.reduce((sum, t) => sum + (topicStats[t.id]?.advanced || 0), 0);
     const lvlIncrement = LEVEL_WORD_INCREMENTS[lvl];
     const lvlPct       = Math.min(100, Math.round((lvlAdvanced / lvlIncrement) * 100));
@@ -112,6 +112,10 @@ function renderCurriculum() {
                 <div class="topic-bar"><div class="topic-fill" style="width:${pct}%"></div></div>
               </div>`;
           }).join('')}
+          <div class="topic-card topic-card-add" onclick="openAddTopicModal('${lvl}')" title="Add a custom topic to ${lvl}">
+            <div class="topic-add-icon">+</div>
+            <div class="topic-name">Add Topic</div>
+          </div>
         </div>
       </div>`;
   }).join('');

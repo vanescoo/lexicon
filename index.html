@@ -332,6 +332,34 @@
   </div>
 </div>
 
+<!-- ── Add Topic Modal ── -->
+<div class="overlay" id="add-topic-modal" onclick="handleAddTopicOverlayClick(event)">
+  <div class="modal">
+    <h2 id="add-topic-title">Add Topic</h2>
+    <div class="modal-sub" id="add-topic-sub"></div>
+
+    <div id="add-topic-form">
+      <div class="form-group">
+        <label>Topic name</label>
+        <div style="display:flex;gap:8px;align-items:stretch">
+          <input id="add-topic-input" type="text" placeholder="e.g. Music & Instruments"
+            style="flex:1" onkeydown="if(event.key==='Enter') saveCustomTopic()" />
+          <button class="btn btn-ghost" onclick="suggestTopicName()" title="Ask AI to suggest a topic name">✨ Suggest</button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeAddTopicModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveCustomTopic()">Add Topic</button>
+      </div>
+    </div>
+
+    <div id="add-topic-loading" class="gen-loading" style="display:none">
+      <div class="spinner"></div>
+      Getting AI suggestion…
+    </div>
+  </div>
+</div>
+
 <!-- ── Toast ── -->
 <div class="toast" id="toast">
   <span class="toast-msg" id="toast-msg"></span>
@@ -349,6 +377,7 @@
 <script src="js/render.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/study.js"></script>
+<script src="js/topics.js"></script>
 <script src="js/generate.js"></script>
 <script src="js/app.js"></script>
 
