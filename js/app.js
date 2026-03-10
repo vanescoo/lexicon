@@ -173,5 +173,25 @@ document.getElementById('btn-save-settings').onclick = async () => {
   }
 };
 
+// ── Event wiring: delete all memory ──────────────────────────
+
+document.getElementById('btn-delete-memory').onclick = async () => {
+  if (!confirm('Delete ALL flashcard progress? This cannot be undone.')) return;
+  try {
+    const snap = await db.collection('users').doc(currentUser.uid).collection('cards').get();
+    for (let i = 0; i < snap.docs.length; i += 500) {
+      const batch = db.batch();
+      snap.docs.slice(i, i + 500).forEach(d => batch.delete(d.ref));
+      await batch.commit();
+    }
+    await loadCards();
+    renderHome();
+    renderCurriculum();
+    toast('All progress deleted.', 'success');
+  } catch (e) {
+    toast('Failed to delete: ' + e.message, 'error');
+  }
+};
+
 // ── Boot ─────────────────────────────────────────────────────
 initAuth();
