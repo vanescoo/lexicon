@@ -11,7 +11,6 @@ let allCards   = [];   // full list of user cards loaded from Firestore
 let topicStats = {};   // topicId → { total: number, advanced: number }
 
 // Generation modal state
-let genCount   = 10;
 let genTopicId = null;
 
 // Study session state

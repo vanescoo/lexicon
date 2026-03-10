@@ -7,33 +7,43 @@ function openGenModal(topicId) {
   if (!topic) return;
 
   genTopicId = topicId;
-  genCount   = TOPIC_GEN_DEFAULTS[topic.level];
 
-  const topicTarget = TOPIC_WORD_TARGETS[topic.level];
-  const s           = topicStats[topicId] || { total: 0, advanced: 0 };
+  const target = TOPIC_WORD_TARGETS[topic.level];
+  const s      = topicStats[topicId] || { total: 0, advanced: 0 };
+  const due    = dueCards(topicId);
 
   document.getElementById('gen-title').textContent = topic.name;
   document.getElementById('gen-sub').textContent   =
-    `${topic.level} · ${langName(profile.targetLanguage)} · Target: ${topicTarget} words (${s.advanced} mastered)`;
+    `${topic.level} · ${langName(profile.targetLanguage)} · ${s.total}/${target} generated · ${s.advanced} mastered`;
   document.getElementById('gen-form').style.display    = 'block';
   document.getElementById('gen-loading').style.display = 'none';
-  document.querySelectorAll('.cnt-btn').forEach(b => b.classList.toggle('sel', +b.textContent === genCount));
 
-  // Inject a Study button when there are due cards for this topic
-  const due = dueCards(topicId);
-  let studyBtn = document.getElementById('modal-study-btn');
-  if (due.length > 0) {
-    if (!studyBtn) {
-      studyBtn = document.createElement('button');
-      studyBtn.id        = 'modal-study-btn';
-      studyBtn.className = 'btn btn-ghost';
-      document.getElementById('modal-actions').prepend(studyBtn);
+  // Clear previously injected buttons
+  document.querySelectorAll('.gen-injected-btn').forEach(b => b.remove());
+
+  const actions = document.getElementById('modal-actions');
+
+  if (s.total === 0) {
+    // First visit — only action is generating the full topic
+    const genBtn = document.createElement('button');
+    genBtn.className   = 'btn btn-primary gen-injected-btn';
+    genBtn.textContent = 'Generate Topic ✨';
+    genBtn.onclick     = () => generateCards('initial');
+    actions.appendChild(genBtn);
+  } else {
+    // Return visit — study and/or generate extra
+    if (due.length > 0) {
+      const studyBtn = document.createElement('button');
+      studyBtn.className   = 'btn btn-ghost gen-injected-btn';
+      studyBtn.textContent = `Study (${due.length} due)`;
+      studyBtn.onclick     = () => { closeModal(); startStudy(due, topic.name); };
+      actions.prepend(studyBtn);
     }
-    studyBtn.textContent = `Study (${due.length} due)`;
-    studyBtn.onclick     = () => { closeModal(); startStudy(due, topic.name); };
-    studyBtn.style.display = '';
-  } else if (studyBtn) {
-    studyBtn.style.display = 'none';
+    const extraBtn = document.createElement('button');
+    extraBtn.className   = 'btn btn-primary gen-injected-btn';
+    extraBtn.textContent = 'Generate Extra Words ✨';
+    extraBtn.onclick     = () => generateCards('extra');
+    actions.appendChild(extraBtn);
   }
 
   document.getElementById('gen-modal').classList.add('open');
@@ -41,31 +51,35 @@ function openGenModal(topicId) {
 
 function closeModal() {
   document.getElementById('gen-modal').classList.remove('open');
+  document.querySelectorAll('.gen-injected-btn').forEach(b => b.remove());
   genTopicId = null;
-  const b = document.getElementById('modal-study-btn');
-  if (b) b.remove();
 }
 
 function handleOverlayClick(e) {
   if (e.target === document.getElementById('gen-modal')) closeModal();
 }
 
-function setCount(n) {
-  genCount = n;
-  document.querySelectorAll('.cnt-btn').forEach(b => b.classList.toggle('sel', +b.textContent === n));
-}
-
-async function generateCards() {
+async function generateCards(mode) {
   if (!genTopicId) return;
 
   const topic  = CURRICULUM.find(t => t.id === genTopicId);
   const native = langName(profile.nativeLanguage);
   const target = langName(profile.targetLanguage);
+  const count  = TOPIC_WORD_TARGETS[topic.level];
+
+  // Collect existing fronts to enforce uniqueness
+  const existingFronts = allCards
+    .filter(c => c.topicId === genTopicId)
+    .map(c => c.front);
 
   document.getElementById('gen-form').style.display    = 'none';
   document.getElementById('gen-loading').style.display = 'block';
 
-  const prompt = `You are an expert language teacher. Generate exactly ${genCount} vocabulary flashcards for a ${native} speaker learning ${target}.
+  const uniquenessNote = existingFronts.length > 0
+    ? `\nDo NOT include any of these already-existing words (exact or near-duplicate):\n${existingFronts.join(', ')}`
+    : '';
+
+  const prompt = `You are an expert language teacher. Generate exactly ${count} vocabulary flashcards for a ${native} speaker learning ${target}.
 
 Topic: "${topic.name}" (CEFR level: ${topic.level})
 
@@ -73,6 +87,8 @@ Each card must have:
 - "type": "vocabulary"
 - "front": a word or short phrase in ${target}
 - "back": the ${native} translation
+
+All ${count} words must be unique — no duplicates within this batch.${uniquenessNote}
 
 Make the vocabulary genuinely useful and appropriate for the level and topic. Keep it accurate and culturally appropriate.
 
@@ -137,11 +153,15 @@ RESPOND WITH ONLY A RAW JSON ARRAY. No markdown, no backticks, no explanation. E
     const cards = JSON.parse(json);
     if (!Array.isArray(cards)) throw new Error('Response was not a JSON array');
 
+    // Deduplicate against existing fronts (case-insensitive)
+    const existingSet = new Set(existingFronts.map(f => f.toLowerCase()));
     const now   = Date.now();
     const batch = db.batch();
     let count   = 0;
     cards.forEach(c => {
       if (!c.front || !c.back || !c.type) return;
+      if (existingSet.has(String(c.front).toLowerCase())) return;
+      existingSet.add(String(c.front).toLowerCase());
       const ref = db.collection('users').doc(currentUser.uid).collection('cards').doc();
       batch.set(ref, {
         topicId:        genTopicId,

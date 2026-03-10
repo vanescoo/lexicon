@@ -27,14 +27,18 @@ function dueCards(ofTopicId = null) {
   );
 }
 
-// A topic unlocks when the previous topic has reached its word target
+// All topics in a level unlock together.
+// A1 is always unlocked. A2 unlocks when 75% of A1 words are mastered.
+// B1 unlocks when 75% of A2 words are mastered.
 function isUnlocked(topic) {
-  if (topic.order <= 1) return true;
-  const prev = CURRICULUM.find(t => t.order === topic.order - 1);
-  if (!prev) return true;
-  const s = topicStats[prev.id];
-  if (!s || s.total === 0) return topic.order <= 2;
-  return s.advanced >= TOPIC_WORD_TARGETS[prev.level];
+  const levelOrder = ['A1', 'A2', 'B1'];
+  const levelIdx   = levelOrder.indexOf(topic.level);
+  if (levelIdx <= 0) return true;
+  const prevLevel    = levelOrder[levelIdx - 1];
+  const prevTopics   = CURRICULUM.filter(t => t.level === prevLevel);
+  const prevAdvanced = prevTopics.reduce((sum, t) => sum + (topicStats[t.id]?.advanced || 0), 0);
+  const threshold    = Math.floor(LEVEL_WORD_INCREMENTS[prevLevel] * 0.75);
+  return prevAdvanced >= threshold;
 }
 
 function langName(code) {
