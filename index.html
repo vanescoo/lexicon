@@ -137,11 +137,8 @@
     <div class="sidebar-logo">Lexi<span>con</span></div>
     <div class="nav-group">
       <div class="nav-lbl">Learn</div>
-      <button class="nav-btn active" data-page="home" onclick="showPage('home')">
-        <span class="icon">🏠</span><span>Home</span>
-      </button>
-      <button class="nav-btn" data-page="curriculum" onclick="showPage('curriculum')">
-        <span class="icon">📚</span><span>Curriculum</span>
+      <button class="nav-btn active" data-page="flashcards" onclick="showPage('flashcards')">
+        <span class="icon">🃏</span><span>Vocabulary Flashcards</span>
       </button>
     </div>
     <div class="nav-group">
@@ -158,8 +155,10 @@
 
   <main class="main">
 
-    <!-- Home -->
-    <div id="page-home" class="page active">
+    <!-- Vocabulary Flashcards (Home + Curriculum combined) -->
+    <div id="page-flashcards" class="page active">
+
+      <!-- Home section -->
       <div class="page-hd">
         <h1 id="home-greeting">Good morning</h1>
         <p id="home-sub">Loading your progress…</p>
@@ -185,19 +184,18 @@
         <div class="leitner-row" id="leitner-row"></div>
       </div>
 
-      <div>
+      <div style="margin-bottom:56px">
         <div class="section-hd">Continue Learning</div>
         <div class="topics-grid" id="recent-topics"></div>
       </div>
-    </div>
 
-    <!-- Curriculum -->
-    <div id="page-curriculum" class="page">
-      <div class="page-hd">
+      <!-- Curriculum section -->
+      <div class="page-hd" style="margin-top:8px">
         <h1>Curriculum</h1>
         <p id="cur-sub">60 topics across 6 CEFR levels</p>
       </div>
       <div id="curriculum-body"></div>
+
     </div>
 
     <!-- Settings -->
@@ -242,6 +240,11 @@
           <div class="form-group"><label>API Key</label><input id="set-key" type="password" /></div>
         </div>
         <button class="btn btn-primary" id="btn-save-settings" style="width:fit-content;padding:12px 32px">Save Changes</button>
+        <div class="card-block" style="margin-top:24px;border-color:rgba(194,91,91,0.25)">
+          <h3 style="font-family:var(--font-d);font-size:1.15rem;margin-bottom:10px;padding-bottom:12px;border-bottom:1px solid rgba(194,91,91,0.2);color:var(--red)">Danger Zone</h3>
+          <p style="color:var(--muted);font-size:0.88rem;margin-bottom:16px">Permanently erase all your flashcard progress and history. This cannot be undone.</p>
+          <button class="btn btn-danger" id="btn-delete-memory">Delete All Memory</button>
+        </div>
       </div>
     </div>
 

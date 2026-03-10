@@ -51,6 +51,8 @@ html, body { min-height: 100vh; background: var(--bg); color: var(--text); font-
 .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
 .btn-ghost:hover { background: var(--surface2); }
 .btn-full { width: 100%; }
+.btn-danger { background: rgba(194,91,91,0.1); color: var(--red); border: 1px solid rgba(194,91,91,0.3); }
+.btn-danger:hover { background: rgba(194,91,91,0.18); }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
 
 /* ── Forms ── */

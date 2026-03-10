@@ -65,25 +65,19 @@ async function generateCards() {
   document.getElementById('gen-form').style.display    = 'none';
   document.getElementById('gen-loading').style.display = 'block';
 
-  const prompt = `You are an expert language teacher. Generate exactly ${genCount} flashcards for a ${native} speaker learning ${target}.
+  const prompt = `You are an expert language teacher. Generate exactly ${genCount} vocabulary flashcards for a ${native} speaker learning ${target}.
 
 Topic: "${topic.name}" (CEFR level: ${topic.level})
 
-Mix these types as appropriate for the topic:
-- "vocabulary": front = word/phrase in ${target}, back = ${native} translation
-- "fill_blank": front = ${target} sentence with ONE blank shown as _____, back = complete correct sentence
-- "sentence_translation": front = ${native} sentence, back = ${target} translation
-- "grammar": front = grammar question about ${target}, back = concise rule + example
-- "qa": front = conceptual question about the topic in ${native}, back = clear ${native} explanation
+Each card must have:
+- "type": "vocabulary"
+- "front": a word or short phrase in ${target}
+- "back": the ${native} translation
 
-Rules:
-- Make cards genuinely useful for the specified level and topic
-- Vary the types naturally (don't use the same type for every card)
-- Keep content accurate and culturally appropriate
-- For fill_blank, blank out a key vocabulary word or grammar element
+Make the vocabulary genuinely useful and appropriate for the level and topic. Keep it accurate and culturally appropriate.
 
 RESPOND WITH ONLY A RAW JSON ARRAY. No markdown, no backticks, no explanation. Example:
-[{"type":"vocabulary","front":"gracias","back":"thank you"},{"type":"fill_blank","front":"Ella _____ (to eat) una manzana.","back":"Ella come una manzana."}]`;
+[{"type":"vocabulary","front":"bonjour","back":"hello"},{"type":"vocabulary","front":"merci","back":"thank you"}]`;
 
   try {
     const base     = profile.apiBaseUrl.replace(/\/$/, '');
@@ -151,7 +145,7 @@ RESPOND WITH ONLY A RAW JSON ARRAY. No markdown, no backticks, no explanation. E
       const ref = db.collection('users').doc(currentUser.uid).collection('cards').doc();
       batch.set(ref, {
         topicId:        genTopicId,
-        type:           String(c.type),
+        type:           'vocabulary',
         front:          String(c.front),
         back:           String(c.back),
         box:            1,
