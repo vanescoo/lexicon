@@ -5,7 +5,11 @@
 // Uses Web Audio API (AudioContext) for LLM TTS so that:
 //   • Playback is never blocked by browser autoplay policy after async fetches
 //   • Volume is always consistent (no browser fade-in ramp)
-// AudioContext is created and unlocked on the first user click.
+//
+// Overlap prevention — two layers:
+//   1. AbortController  — cancels the in-flight HTTP fetch immediately
+//   2. Sequence ID (_seqId) — guards against stale audio that arrives after
+//      a new play request has already started (e.g. very fast flips)
 // ─────────────────────────────────────────────────────────────
 
 // Map app language codes → BCP-47 locales (used by Web Speech fallback)
@@ -20,6 +24,8 @@ const LANG_LOCALES = {
 let audioMuted     = false;
 let _audioCtx      = null;   // shared AudioContext — stays unlocked after first gesture
 let _currentSource = null;   // active AudioBufferSourceNode
+let _currentAbort  = null;   // AbortController for the in-flight TTS fetch
+let _seqId         = 0;      // incremented on every new play; stale completions are dropped
 
 function getLocale(langCode) {
   return LANG_LOCALES[langCode] || langCode;
@@ -33,18 +39,16 @@ function _getAudioCtx() {
 }
 
 // Unlock the AudioContext on the very first user click anywhere on the page.
-// This ensures it is "running" before any async TTS fetch completes.
 document.addEventListener('click', () => {
   const ctx = _getAudioCtx();
   if (ctx.state === 'suspended') ctx.resume();
 });
 
-// Stop whatever is currently playing (Web Audio source or Web Speech)
+// Stop everything: cancel in-flight fetch, stop playing source, stop Web Speech.
 function stopSpeech() {
-  if (_currentSource) {
-    try { _currentSource.stop(); } catch (_) {}
-    _currentSource = null;
-  }
+  _seqId++;                                         // invalidate any in-flight sequence
+  if (_currentAbort)  { _currentAbort.abort(); _currentAbort = null; }
+  if (_currentSource) { try { _currentSource.stop(); } catch (_) {} _currentSource = null; }
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 }
 
@@ -72,15 +76,13 @@ function _playAudioBuffer(audioBuffer) {
 }
 
 // Decode Gemini's base64 L16 PCM (mono, 24 kHz) directly into an AudioBuffer.
-// Avoids any WAV-wrapping: samples are normalized to Float32 [-1, 1].
 function _pcmToAudioBuffer(base64pcm) {
   const ctx        = _getAudioCtx();
   const raw        = atob(base64pcm);
-  const numSamples = raw.length / 2;          // 16-bit = 2 bytes per sample
+  const numSamples = raw.length / 2;
   const abuf       = ctx.createBuffer(1, numSamples, 24000);
   const ch         = abuf.getChannelData(0);
   for (let i = 0; i < numSamples; i++) {
-    // L16 from Gemini is little-endian signed 16-bit
     let s = (raw.charCodeAt(i * 2)) | (raw.charCodeAt(i * 2 + 1) << 8);
     if (s > 32767) s -= 65536;
     ch[i] = s / 32768.0;
@@ -89,22 +91,31 @@ function _pcmToAudioBuffer(base64pcm) {
 }
 
 // Speak via OpenAI-compatible /audio/speech endpoint.
-async function _speakViaOpenAI(text) {
+// Returns early (silently) if superseded by a newer sequence.
+async function _speakViaOpenAI(text, id) {
+  const ctrl = new AbortController();
+  _currentAbort = ctrl;
   const base = profile.apiBaseUrl.replace(/\/$/, '');
   const res  = await fetch(`${base}/audio/speech`, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${profile.apiKey}` },
     body:    JSON.stringify({ model: 'tts-1', input: text, voice: 'alloy' }),
+    signal:  ctrl.signal,
   });
+  _currentAbort = null;
+  if (_seqId !== id) return;
   if (!res.ok) throw new Error(`OpenAI TTS ${res.status}: ${await res.text()}`);
   const ctx         = _getAudioCtx();
   const audioBuffer = await ctx.decodeAudioData(await res.arrayBuffer());
+  if (_seqId !== id) return;
   return _playAudioBuffer(audioBuffer);
 }
 
 // Speak via Gemini generateContent with AUDIO response modality.
-// Uses the dedicated TTS model, not the chat model.
-async function _speakViaGemini(text) {
+// Returns early (silently) if superseded by a newer sequence.
+async function _speakViaGemini(text, id) {
+  const ctrl = new AbortController();
+  _currentAbort = ctrl;
   const base = profile.apiBaseUrl.replace(/\/$/, '');
   const url  = `${base}/models/gemini-2.5-flash-preview-tts:generateContent?key=${profile.apiKey}`;
   const res  = await fetch(url, {
@@ -117,39 +128,45 @@ async function _speakViaGemini(text) {
         speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Aoede' } } },
       },
     }),
+    signal: ctrl.signal,
   });
+  _currentAbort = null;
+  if (_seqId !== id) return;
   if (!res.ok) throw new Error(`Gemini TTS ${res.status}: ${await res.text()}`);
   const data   = await res.json();
   const b64pcm = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
   if (!b64pcm) throw new Error('Gemini TTS: no audio in response');
+  if (_seqId !== id) return;
   return _playAudioBuffer(_pcmToAudioBuffer(b64pcm));
 }
 
 // Speak via browser Web Speech API.
-// Returns a Promise that resolves when the utterance ends (or on error).
-function _speakViaWebSpeech(text, langCode) {
+function _speakViaWebSpeech(text, langCode, id) {
   return new Promise(resolve => {
-    if (!('speechSynthesis' in window)) { resolve(); return; }
+    if (!('speechSynthesis' in window) || _seqId !== id) { resolve(); return; }
     const utt   = new SpeechSynthesisUtterance(text);
     utt.lang    = getLocale(langCode);
     utt.onend   = resolve;
-    utt.onerror = resolve;  // resolve so sequence continues even on error
+    utt.onerror = resolve;
     window.speechSynthesis.speak(utt);
   });
 }
 
 // Play an ordered list of {text, langCode} items one after another.
-// Routes to the provider's TTS; falls back to Web Speech on error or for Claude.
+// Each item checks the sequence ID before and after its fetch so that
+// any flip or card advance immediately silences everything in progress.
 async function _speakSequence(items) {
+  const id       = ++_seqId;
   const provider = _ttsProvider();
   for (const { text, langCode } of items) {
-    if (audioMuted) break;
+    if (audioMuted || _seqId !== id) return;
     try {
-      if      (provider === 'openai') await _speakViaOpenAI(text);
-      else if (provider === 'gemini') await _speakViaGemini(text);
-      else                            await _speakViaWebSpeech(text, langCode);
+      if      (provider === 'openai') await _speakViaOpenAI(text, id);
+      else if (provider === 'gemini') await _speakViaGemini(text, id);
+      else                            await _speakViaWebSpeech(text, langCode, id);
     } catch (_) {
-      await _speakViaWebSpeech(text, langCode);
+      if (_seqId !== id) return;
+      await _speakViaWebSpeech(text, langCode, id);
     }
   }
 }
@@ -171,7 +188,6 @@ function getBackLang(card) {
 
 // ── Public playback functions ─────────────────────────────────
 
-// Front side: speak the word / term / question
 function speakCardFront() {
   const card = studyQueue[studyIdx];
   if (!card) return;
@@ -179,8 +195,6 @@ function speakCardFront() {
   _speakSequence([{ text: card.front, langCode: getFrontLang(card) }]);
 }
 
-// Back side: speak word/term first, then the translation / answer.
-// This covers word + example sentence + translation in one pass.
 function speakCardBack() {
   const card = studyQueue[studyIdx];
   if (!card) return;
