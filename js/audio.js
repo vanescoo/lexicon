@@ -1,6 +1,11 @@
 // ─────────────────────────────────────────────────────────────
 // Audio — LLM TTS (OpenAI /audio/speech · Gemini generateContent)
 //         with Web Speech API fallback for Claude
+//
+// Uses Web Audio API (AudioContext) for LLM TTS so that:
+//   • Playback is never blocked by browser autoplay policy after async fetches
+//   • Volume is always consistent (no browser fade-in ramp)
+// AudioContext is created and unlocked on the first user click.
 // ─────────────────────────────────────────────────────────────
 
 // Map app language codes → BCP-47 locales (used by Web Speech fallback)
@@ -12,18 +17,33 @@ const LANG_LOCALES = {
   id: 'id-ID', cs: 'cs-CZ', ro: 'ro-RO', hu: 'hu-HU',
 };
 
-let audioMuted    = false;
-let _currentAudio = null;   // Active <Audio> element for LLM TTS playback
+let audioMuted     = false;
+let _audioCtx      = null;   // shared AudioContext — stays unlocked after first gesture
+let _currentSource = null;   // active AudioBufferSourceNode
 
 function getLocale(langCode) {
   return LANG_LOCALES[langCode] || langCode;
 }
 
-// Stop whatever is currently playing (LLM audio or Web Speech)
+// Create (or resume) the AudioContext.  Called inside user-gesture handlers so
+// the context starts in "running" state and stays that way for the session.
+function _getAudioCtx() {
+  if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return _audioCtx;
+}
+
+// Unlock the AudioContext on the very first user click anywhere on the page.
+// This ensures it is "running" before any async TTS fetch completes.
+document.addEventListener('click', () => {
+  const ctx = _getAudioCtx();
+  if (ctx.state === 'suspended') ctx.resume();
+});
+
+// Stop whatever is currently playing (Web Audio source or Web Speech)
 function stopSpeech() {
-  if (_currentAudio) {
-    _currentAudio.pause();
-    _currentAudio = null;
+  if (_currentSource) {
+    try { _currentSource.stop(); } catch (_) {}
+    _currentSource = null;
   }
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 }
@@ -37,46 +57,35 @@ function _ttsProvider() {
   return 'openai';
 }
 
-// Play an audio blob URL; resolves when playback ends.
-function _playBlobUrl(url) {
-  return new Promise((resolve, reject) => {
-    const audio = new Audio(url);
-    _currentAudio = audio;
-    audio.onended = () => { URL.revokeObjectURL(url); _currentAudio = null; resolve(); };
-    audio.onerror = () => { URL.revokeObjectURL(url); _currentAudio = null; reject(new Error('Audio playback error')); };
-    audio.play().catch(reject);
+// Play an AudioBuffer through the shared AudioContext.
+// Resolves when playback finishes.
+function _playAudioBuffer(audioBuffer) {
+  const ctx = _getAudioCtx();
+  return new Promise(resolve => {
+    const source = ctx.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(ctx.destination);
+    _currentSource = source;
+    source.onended = () => { _currentSource = null; resolve(); };
+    source.start(0);
   });
 }
 
-// Wrap raw L16 PCM (base64) in a WAV container so the browser can play it.
-// Gemini TTS returns mono 16-bit PCM at 24 000 Hz.
-function _pcmToWavBlob(base64pcm) {
-  const raw    = atob(base64pcm);
-  const pcm    = new Uint8Array(raw.length);
-  for (let i = 0; i < raw.length; i++) pcm[i] = raw.charCodeAt(i);
-
-  const sampleRate    = 24000;
-  const numChannels   = 1;
-  const bitsPerSample = 16;
-  const byteRate      = sampleRate * numChannels * bitsPerSample / 8;
-  const blockAlign    = numChannels * bitsPerSample / 8;
-
-  const buf  = new ArrayBuffer(44 + pcm.length);
-  const view = new DataView(buf);
-  const str  = (off, s) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
-
-  str(0,  'RIFF'); view.setUint32(4,  36 + pcm.length, true); str(8,  'WAVE');
-  str(12, 'fmt '); view.setUint32(16, 16,              true);
-  view.setUint16(20, 1,            true);   // PCM
-  view.setUint16(22, numChannels,  true);
-  view.setUint32(24, sampleRate,   true);
-  view.setUint32(28, byteRate,     true);
-  view.setUint16(32, blockAlign,   true);
-  view.setUint16(34, bitsPerSample,true);
-  str(36, 'data'); view.setUint32(40, pcm.length, true);
-  new Uint8Array(buf, 44).set(pcm);
-
-  return new Blob([buf], { type: 'audio/wav' });
+// Decode Gemini's base64 L16 PCM (mono, 24 kHz) directly into an AudioBuffer.
+// Avoids any WAV-wrapping: samples are normalized to Float32 [-1, 1].
+function _pcmToAudioBuffer(base64pcm) {
+  const ctx        = _getAudioCtx();
+  const raw        = atob(base64pcm);
+  const numSamples = raw.length / 2;          // 16-bit = 2 bytes per sample
+  const abuf       = ctx.createBuffer(1, numSamples, 24000);
+  const ch         = abuf.getChannelData(0);
+  for (let i = 0; i < numSamples; i++) {
+    // L16 from Gemini is little-endian signed 16-bit
+    let s = (raw.charCodeAt(i * 2)) | (raw.charCodeAt(i * 2 + 1) << 8);
+    if (s > 32767) s -= 65536;
+    ch[i] = s / 32768.0;
+  }
+  return abuf;
 }
 
 // Speak via OpenAI-compatible /audio/speech endpoint.
@@ -88,7 +97,9 @@ async function _speakViaOpenAI(text) {
     body:    JSON.stringify({ model: 'tts-1', input: text, voice: 'alloy' }),
   });
   if (!res.ok) throw new Error(`OpenAI TTS ${res.status}: ${await res.text()}`);
-  return _playBlobUrl(URL.createObjectURL(await res.blob()));
+  const ctx         = _getAudioCtx();
+  const audioBuffer = await ctx.decodeAudioData(await res.arrayBuffer());
+  return _playAudioBuffer(audioBuffer);
 }
 
 // Speak via Gemini generateContent with AUDIO response modality.
@@ -111,7 +122,7 @@ async function _speakViaGemini(text) {
   const data   = await res.json();
   const b64pcm = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
   if (!b64pcm) throw new Error('Gemini TTS: no audio in response');
-  return _playBlobUrl(URL.createObjectURL(_pcmToWavBlob(b64pcm)));
+  return _playAudioBuffer(_pcmToAudioBuffer(b64pcm));
 }
 
 // Speak via browser Web Speech API.
@@ -119,9 +130,9 @@ async function _speakViaGemini(text) {
 function _speakViaWebSpeech(text, langCode) {
   return new Promise(resolve => {
     if (!('speechSynthesis' in window)) { resolve(); return; }
-    const utt  = new SpeechSynthesisUtterance(text);
-    utt.lang   = getLocale(langCode);
-    utt.onend  = resolve;
+    const utt   = new SpeechSynthesisUtterance(text);
+    utt.lang    = getLocale(langCode);
+    utt.onend   = resolve;
     utt.onerror = resolve;  // resolve so sequence continues even on error
     window.speechSynthesis.speak(utt);
   });

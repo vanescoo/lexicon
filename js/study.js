@@ -42,11 +42,16 @@ function renderStudyCard() {
 }
 
 function flipCard() {
-  if (flipped) return;
-  flipped = true;
-  document.getElementById('card-3d').classList.add('flipped');
-  setTimeout(() => document.getElementById('ans-btns').classList.add('show'), 300);
-  autoPlayBack();
+  flipped = !flipped;
+  const card3d = document.getElementById('card-3d');
+  if (flipped) {
+    card3d.classList.add('flipped');
+    setTimeout(() => document.getElementById('ans-btns').classList.add('show'), 300);
+    autoPlayBack();
+  } else {
+    card3d.classList.remove('flipped');
+    autoPlayFront();
+  }
 }
 
 async function answerCard(correct) {
