@@ -1,0 +1,5 @@
+# Lexicon — Change Log
+# Format: [YYYY-MM-DD] vX.Y.Z – description
+# !! Every AI-assisted commit MUST add a new entry here and bump APP_VERSION in js/config.js !!
+
+[2026-03-10] v1.3.0 – Add card audio playback with Web Speech API TTS; add mandatory versioning/log rule
