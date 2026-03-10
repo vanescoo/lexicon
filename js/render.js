@@ -30,7 +30,7 @@ function renderHome() {
   for (let b = 1; b <= 5; b++) {
     const cnt = allCards.filter(c => c.box === b).length;
     row.innerHTML += `
-      <div class="leitner-box">
+      <div class="leitner-box" onclick="openLeitnerModal(${b})" title="View cards in Box ${b}">
         <div class="leitner-box-val">${cnt}</div>
         <div class="leitner-box-name">Box ${b}</div>
         <div class="leitner-box-interval">every ${INTERVALS[b]}d</div>
@@ -38,16 +38,26 @@ function renderHome() {
   }
 
   // Active / recent topics
-  const active = CURRICULUM
+  const active = getTopics()
     .filter(t => isUnlocked(t) && topicStats[t.id]?.total > 0)
     .slice(-6)
     .reverse();
-  const firstUnlocked = CURRICULUM.find(t => isUnlocked(t) && topicStats[t.id]?.total === 0);
+  const firstUnlocked = getTopics().find(t => isUnlocked(t) && topicStats[t.id]?.total === 0);
   const showTopics    = active.length > 0 ? active : (firstUnlocked ? [firstUnlocked] : []);
 
   document.getElementById('recent-topics').innerHTML = showTopics.length
     ? showTopics.map(t => topicCardHTML(t)).join('')
     : `<p style="color:var(--muted)">Visit Curriculum to start your first topic.</p>`;
+}
+
+// Routes topic card click: inspector if already generated, gen modal if not yet
+function openTopicCard(topicId) {
+  const s = topicStats[topicId] || { total: 0, advanced: 0 };
+  if (s.total > 0) {
+    openTopicInspector(topicId);
+  } else {
+    openGenModal(topicId);
+  }
 }
 
 // Returns the HTML string for a single topic card (used in Home and Curriculum)
@@ -57,7 +67,7 @@ function topicCardHTML(t) {
   const pct    = Math.min(100, Math.round((s.advanced / target) * 100));
   const due    = dueCards(t.id).length;
   return `
-    <div class="topic-card" onclick="openGenModal('${t.id}')">
+    <div class="topic-card" onclick="openTopicCard('${t.id}')">
       <div class="topic-card-top">
         <span class="lvl lvl-${t.level}">${t.level}</span>
         ${due > 0 ? `<span class="due-chip">${due} due</span>` : ''}
@@ -71,7 +81,7 @@ function topicCardHTML(t) {
 function renderCurriculum() {
   const levels = ['A1', 'A2', 'B1'];
   document.getElementById('curriculum-body').innerHTML = levels.map(lvl => {
-    const topics       = CURRICULUM.filter(t => t.level === lvl);
+    const topics       = getTopics().filter(t => t.level === lvl);
     const lvlAdvanced  = topics.reduce((sum, t) => sum + (topicStats[t.id]?.advanced || 0), 0);
     const lvlIncrement = LEVEL_WORD_INCREMENTS[lvl];
     const lvlPct       = Math.min(100, Math.round((lvlAdvanced / lvlIncrement) * 100));
@@ -100,7 +110,7 @@ function renderCurriculum() {
             const due = dueCards(t.id).length;
             return `
               <div class="topic-card ${levelUnlocked ? '' : 'locked'}"
-                onclick="${levelUnlocked ? `openGenModal('${t.id}')` : ''}"
+                onclick="${levelUnlocked ? `openTopicCard('${t.id}')` : ''}"
                 title="${levelUnlocked ? '' : `Master ${threshold} words in ${lvl === 'A2' ? 'A1' : 'A2'} (75%) to unlock this level`}">
                 ${!levelUnlocked ? '<div class="lock-icon">🔒</div>' : ''}
                 <div class="topic-card-top">
@@ -112,6 +122,10 @@ function renderCurriculum() {
                 <div class="topic-bar"><div class="topic-fill" style="width:${pct}%"></div></div>
               </div>`;
           }).join('')}
+          <div class="topic-card topic-card-add" onclick="openAddTopicModal('${lvl}')" title="Add a custom topic to ${lvl}">
+            <div class="topic-add-icon">+</div>
+            <div class="topic-name">Add Topic</div>
+          </div>
         </div>
       </div>`;
   }).join('');

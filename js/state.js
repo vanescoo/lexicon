@@ -7,8 +7,9 @@
 let db, auth, currentUser, profile;
 
 // Card data
-let allCards   = [];   // full list of user cards loaded from Firestore
-let topicStats = {};   // topicId → { total: number, advanced: number }
+let allCards     = [];   // full list of user cards loaded from Firestore
+let topicStats   = {};   // topicId → { total: number, advanced: number }
+let customTopics = [];   // user-created topics loaded from Firestore
 
 // Generation modal state
 let genTopicId = null;
