@@ -3,12 +3,16 @@
 // ─────────────────────────────────────────────────────────────
 
 function openLeitnerModal(box) {
-  const cards = allCards.filter(c => c.box === box);
+  const cards  = allCards.filter(c => c.box === box);
+  const isNew  = box === 0;
+  const title  = isNew ? `New (Unseen)` : `Box ${box}`;
+  const subTxt = isNew
+    ? 'These cards have never been shown — study them to move to Box 1'
+    : `Review interval: every ${INTERVALS[box]} day${INTERVALS[box] === 1 ? '' : 's'}`;
 
   document.getElementById('leitner-modal-title').textContent =
-    `Box ${box} — ${cards.length} card${cards.length === 1 ? '' : 's'}`;
-  document.getElementById('leitner-modal-sub').textContent =
-    `Review interval: every ${INTERVALS[box]} day${INTERVALS[box] === 1 ? '' : 's'}`;
+    `${title} — ${cards.length} card${cards.length === 1 ? '' : 's'}`;
+  document.getElementById('leitner-modal-sub').textContent = subTxt;
 
   const tbody = document.getElementById('leitner-table-body');
 
@@ -18,15 +22,17 @@ function openLeitnerModal(box) {
     // Sort by nextReviewDate ascending (soonest due first)
     const sorted = [...cards].sort((a, b) => (a.nextReviewDate || 0) - (b.nextReviewDate || 0));
     tbody.innerHTML = sorted.map(c => {
-      const topic    = getTopics().find(t => t.id === c.topicId);
+      const topic     = getTopics().find(t => t.id === c.topicId);
       const topicName = topic ? topic.name  : '—';
       const level     = topic ? topic.level : '—';
-      const dueDate   = c.nextReviewDate ? new Date(c.nextReviewDate) : null;
-      const now       = Date.now();
-      const isDue     = dueDate && c.nextReviewDate <= now;
-      const dueTxt    = dueDate
-        ? (isDue ? 'Due now' : formatRelativeDate(c.nextReviewDate))
-        : '—';
+      const dueTxt    = isNew ? 'Not yet seen' : (() => {
+        const now   = Date.now();
+        const isDue = c.nextReviewDate && c.nextReviewDate <= now;
+        return c.nextReviewDate
+          ? (isDue ? 'Due now' : formatRelativeDate(c.nextReviewDate))
+          : '—';
+      })();
+      const isDue = !isNew && c.nextReviewDate && c.nextReviewDate <= Date.now();
       return `
         <tr>
           <td class="lt-front">${escapeHtml(c.front)}</td>

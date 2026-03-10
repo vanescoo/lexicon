@@ -145,6 +145,11 @@ function initApp() {
   renderHome();
   renderCurriculum();
   renderDangerZone();
+
+  // Show placement onboarding for first-time users with no cards
+  if (allCards.length === 0 && !profile.placementDone) {
+    showPlacementModal();
+  }
 }
 
 // ── Auth lifecycle ───────────────────────────────────────────

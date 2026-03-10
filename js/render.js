@@ -27,13 +27,14 @@ function renderHome() {
   // Leitner box visualisation
   const row = document.getElementById('leitner-row');
   row.innerHTML = '';
-  for (let b = 1; b <= 5; b++) {
+  for (let b = 0; b <= 5; b++) {
     const cnt = allCards.filter(c => c.box === b).length;
+    const isNew = b === 0;
     row.innerHTML += `
-      <div class="leitner-box" onclick="openLeitnerModal(${b})" title="View cards in Box ${b}">
+      <div class="leitner-box${isNew ? ' leitner-box-new' : ''}" onclick="openLeitnerModal(${b})" title="${isNew ? 'Unseen — never reviewed' : `View cards in Box ${b}`}">
         <div class="leitner-box-val">${cnt}</div>
-        <div class="leitner-box-name">Box ${b}</div>
-        <div class="leitner-box-interval">every ${INTERVALS[b]}d</div>
+        <div class="leitner-box-name">${isNew ? 'New' : `Box ${b}`}</div>
+        <div class="leitner-box-interval">${isNew ? 'unseen' : `every ${INTERVALS[b]}d`}</div>
       </div>`;
   }
 

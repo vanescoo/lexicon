@@ -59,21 +59,17 @@ function handleOverlayClick(e) {
   if (e.target === document.getElementById('gen-modal')) closeModal();
 }
 
-async function generateCards(mode) {
-  if (!genTopicId) return;
-
-  const topic  = getTopics().find(t => t.id ===genTopicId);
+// ── Core generation: API call + Firestore write ───────────────
+// Returns the number of cards written. Throws on error.
+async function generateCardsCore(topicId) {
+  const topic  = getTopics().find(t => t.id === topicId);
   const native = langName(profile.nativeLanguage);
   const target = langName(profile.targetLanguage);
   const count  = TOPIC_WORD_TARGETS[topic.level];
 
-  // Collect existing fronts to enforce uniqueness
   const existingFronts = allCards
-    .filter(c => c.topicId === genTopicId)
+    .filter(c => c.topicId === topicId)
     .map(c => c.front);
-
-  document.getElementById('gen-form').style.display    = 'none';
-  document.getElementById('gen-loading').style.display = 'block';
 
   const uniquenessNote = existingFronts.length > 0
     ? `\nDo NOT include any of these already-existing words (exact or near-duplicate):\n${existingFronts.join(', ')}`
@@ -95,95 +91,103 @@ Make the vocabulary genuinely useful and appropriate for the level and topic. Ke
 RESPOND WITH ONLY A RAW JSON ARRAY. No markdown, no backticks, no explanation. Example:
 [{"type":"vocabulary","front":"bonjour","back":"hello"},{"type":"vocabulary","front":"merci","back":"thank you"}]`;
 
-  try {
-    const base     = profile.apiBaseUrl.replace(/\/$/, '');
-    const isGemini = base.includes('generativelanguage.googleapis.com') && !base.includes('/openai');
-    const isClaude = base.includes('anthropic.com');
-    let res, raw;
+  const base     = profile.apiBaseUrl.replace(/\/$/, '');
+  const isGemini = base.includes('generativelanguage.googleapis.com') && !base.includes('/openai');
+  const isClaude = base.includes('anthropic.com');
+  let res, raw;
 
-    if (isGemini) {
-      const geminiUrl = `${base}/models/${profile.model}:generateContent?key=${profile.apiKey}`;
-      res = await fetch(geminiUrl, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          contents:         [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.75 },
-        }),
-      });
-      if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
-      const data = await res.json();
-      raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-    } else if (isClaude) {
-      res = await fetch(`${base}/v1/messages`, {
-        method:  'POST',
-        headers: {
-          'Content-Type':      'application/json',
-          'x-api-key':         profile.apiKey,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model:      profile.model,
-          max_tokens: 4096,
-          messages:   [{ role: 'user', content: prompt }],
-        }),
-      });
-      if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
-      const data = await res.json();
-      raw = data.content?.[0]?.text || '';
-
-    } else {
-      // OpenAI-compatible (default)
-      res = await fetch(`${base}/chat/completions`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${profile.apiKey}` },
-        body:    JSON.stringify({
-          model:       profile.model,
-          messages:    [{ role: 'user', content: prompt }],
-          temperature: 0.75,
-        }),
-      });
-      if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
-      const data = await res.json();
-      raw = data.choices?.[0]?.message?.content || '';
-    }
-
-    const json  = raw.replace(/```json|```/g, '').trim();
-    const cards = JSON.parse(json);
-    if (!Array.isArray(cards)) throw new Error('Response was not a JSON array');
-
-    // Deduplicate against existing fronts (case-insensitive)
-    const existingSet = new Set(existingFronts.map(f => f.toLowerCase()));
-    const now   = Date.now();
-    const batch = db.batch();
-    let count   = 0;
-    cards.forEach(c => {
-      if (!c.front || !c.back || !c.type) return;
-      if (existingSet.has(String(c.front).toLowerCase())) return;
-      existingSet.add(String(c.front).toLowerCase());
-      const ref = db.collection('users').doc(currentUser.uid).collection('cards').doc();
-      batch.set(ref, {
-        topicId:        genTopicId,
-        targetLanguage: profile.targetLanguage,
-        type:           'vocabulary',
-        front:          String(c.front),
-        back:           String(c.back),
-        box:            1,
-        nextReviewDate: now,
-        createdAt:      now,
-        lastReviewedAt: null,
-      });
-      count++;
+  if (isGemini) {
+    const geminiUrl = `${base}/models/${profile.model}:generateContent?key=${profile.apiKey}`;
+    res = await fetch(geminiUrl, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        contents:         [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.75 },
+      }),
     });
-    await batch.commit();
+    if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+    const data = await res.json();
+    raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
+  } else if (isClaude) {
+    res = await fetch(`${base}/v1/messages`, {
+      method:  'POST',
+      headers: {
+        'Content-Type':      'application/json',
+        'x-api-key':         profile.apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model:      profile.model,
+        max_tokens: 4096,
+        messages:   [{ role: 'user', content: prompt }],
+      }),
+    });
+    if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+    const data = await res.json();
+    raw = data.content?.[0]?.text || '';
+
+  } else {
+    // OpenAI-compatible (default)
+    res = await fetch(`${base}/chat/completions`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${profile.apiKey}` },
+      body:    JSON.stringify({
+        model:       profile.model,
+        messages:    [{ role: 'user', content: prompt }],
+        temperature: 0.75,
+      }),
+    });
+    if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+    const data = await res.json();
+    raw = data.choices?.[0]?.message?.content || '';
+  }
+
+  const json  = raw.replace(/```json|```/g, '').trim();
+  const cards = JSON.parse(json);
+  if (!Array.isArray(cards)) throw new Error('Response was not a JSON array');
+
+  const existingSet = new Set(existingFronts.map(f => f.toLowerCase()));
+  const now   = Date.now();
+  const batch = db.batch();
+  let written = 0;
+  cards.forEach(c => {
+    if (!c.front || !c.back || !c.type) return;
+    if (existingSet.has(String(c.front).toLowerCase())) return;
+    existingSet.add(String(c.front).toLowerCase());
+    const ref = db.collection('users').doc(currentUser.uid).collection('cards').doc();
+    batch.set(ref, {
+      topicId:        topicId,
+      targetLanguage: profile.targetLanguage,
+      type:           'vocabulary',
+      front:          String(c.front),
+      back:           String(c.back),
+      box:            0,
+      nextReviewDate: now,
+      createdAt:      now,
+      lastReviewedAt: null,
+    });
+    written++;
+  });
+  await batch.commit();
+  return written;
+}
+
+// ── Modal-wrapped generation ──────────────────────────────────
+async function generateCards(mode) {
+  if (!genTopicId) return;
+
+  document.getElementById('gen-form').style.display    = 'none';
+  document.getElementById('gen-loading').style.display = 'block';
+
+  try {
+    const count = await generateCardsCore(genTopicId);
     closeModal();
     await loadCards();
     renderHome();
     renderCurriculum();
     toast(`${count} cards generated!`, 'success');
-
   } catch (e) {
     document.getElementById('gen-form').style.display    = 'block';
     document.getElementById('gen-loading').style.display = 'none';
