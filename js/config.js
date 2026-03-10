@@ -1,7 +1,13 @@
 // ─────────────────────────────────────────────────────────────
 // App version
 // ─────────────────────────────────────────────────────────────
-const APP_VERSION = '1.2.0';
+// !! MANDATORY RULE FOR EVERY AI-ASSISTED CHANGE !!
+//    1. Increment APP_VERSION (patch / minor / major as appropriate).
+//    2. Append a new entry to log.txt in the repo root:
+//         [YYYY-MM-DD] vX.Y.Z – short description of committed changes
+//    3. Commit BOTH this file and log.txt together with each PR/push.
+//    The version string is displayed to users in the UI; keep it current.
+const APP_VERSION = '1.3.0';
 
 // ─────────────────────────────────────────────────────────────
 // Firebase — replace with your project's config
