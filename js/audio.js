@@ -199,10 +199,7 @@ function speakCardBack() {
   const card = studyQueue[studyIdx];
   if (!card) return;
   stopSpeech();
-  _speakSequence([
-    { text: card.front, langCode: getFrontLang(card) },
-    { text: card.back,  langCode: getBackLang(card)  },
-  ]);
+  _speakSequence([{ text: card.back, langCode: getBackLang(card) }]);
 }
 
 function autoPlayFront() {
