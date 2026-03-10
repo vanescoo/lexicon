@@ -1,8 +1,9 @@
 // ─────────────────────────────────────────────────────────────
-// Audio — Web Speech API text-to-speech for card playback
+// Audio — LLM TTS (OpenAI-compatible /audio/speech) with
+//         Web Speech API fallback for providers without TTS
 // ─────────────────────────────────────────────────────────────
 
-// Map app language codes → BCP-47 locales for SpeechSynthesis
+// Map app language codes → BCP-47 locales (used by Web Speech fallback)
 const LANG_LOCALES = {
   en: 'en-US', es: 'es-ES', fr: 'fr-FR', de: 'de-DE', it: 'it-IT',
   pt: 'pt-PT', ru: 'ru-RU', ja: 'ja-JP', zh: 'zh-CN', ko: 'ko-KR',
@@ -11,27 +12,89 @@ const LANG_LOCALES = {
   id: 'id-ID', cs: 'cs-CZ', ro: 'ro-RO', hu: 'hu-HU',
 };
 
-let audioMuted = false;
+let audioMuted    = false;
+let _currentAudio = null;   // Active <Audio> element for LLM TTS playback
 
 function getLocale(langCode) {
   return LANG_LOCALES[langCode] || langCode;
 }
 
+// Stop whatever is currently playing (LLM audio or Web Speech)
 function stopSpeech() {
+  if (_currentAudio) {
+    _currentAudio.pause();
+    _currentAudio = null;
+  }
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 }
 
-function speakText(text, langCode) {
-  if (!('speechSynthesis' in window)) return;
-  stopSpeech();
-  const utt = new SpeechSynthesisUtterance(text);
-  utt.lang = getLocale(langCode);
-  window.speechSynthesis.speak(utt);
+// Returns true when the configured provider supports OpenAI-compatible TTS
+function _llmTTSAvailable() {
+  if (!profile) return false;
+  const base = profile.apiBaseUrl.replace(/\/$/, '');
+  const isGemini = base.includes('generativelanguage.googleapis.com') && !base.includes('/openai');
+  const isClaude = base.includes('anthropic.com');
+  return !isGemini && !isClaude;
 }
 
-// Determine which language to use for a card face based on card type
+// Speak via OpenAI-compatible /audio/speech endpoint.
+// Returns a Promise that resolves when the audio finishes playing.
+async function _speakViaLLM(text) {
+  const base = profile.apiBaseUrl.replace(/\/$/, '');
+  const res  = await fetch(`${base}/audio/speech`, {
+    method:  'POST',
+    headers: {
+      'Content-Type':  'application/json',
+      'Authorization': `Bearer ${profile.apiKey}`,
+    },
+    body: JSON.stringify({ model: 'tts-1', input: text, voice: 'alloy' }),
+  });
+  if (!res.ok) throw new Error(`TTS API ${res.status}: ${await res.text()}`);
+  const blob = await res.blob();
+  const url  = URL.createObjectURL(blob);
+  return new Promise((resolve, reject) => {
+    const audio = new Audio(url);
+    _currentAudio = audio;
+    audio.onended = () => { URL.revokeObjectURL(url); _currentAudio = null; resolve(); };
+    audio.onerror = () => { URL.revokeObjectURL(url); _currentAudio = null; reject(new Error('Audio playback error')); };
+    audio.play().catch(reject);
+  });
+}
+
+// Speak via browser Web Speech API.
+// Returns a Promise that resolves when the utterance ends (or on error).
+function _speakViaWebSpeech(text, langCode) {
+  return new Promise(resolve => {
+    if (!('speechSynthesis' in window)) { resolve(); return; }
+    const utt  = new SpeechSynthesisUtterance(text);
+    utt.lang   = getLocale(langCode);
+    utt.onend  = resolve;
+    utt.onerror = resolve;  // resolve so sequence continues even on error
+    window.speechSynthesis.speak(utt);
+  });
+}
+
+// Play an ordered list of {text, langCode} items one after another.
+// LLM TTS is used when available; Web Speech is the fallback.
+async function _speakSequence(items) {
+  for (const { text, langCode } of items) {
+    if (audioMuted) break;
+    if (_llmTTSAvailable()) {
+      try {
+        await _speakViaLLM(text);
+      } catch (_) {
+        // LLM TTS failed — fall back to Web Speech for this item
+        await _speakViaWebSpeech(text, langCode);
+      }
+    } else {
+      await _speakViaWebSpeech(text, langCode);
+    }
+  }
+}
+
+// ── Language helpers ──────────────────────────────────────────
+
 function getFrontLang(card) {
-  // sentence_translation and qa have native-language fronts
   if (card.type === 'sentence_translation' || card.type === 'qa') {
     return profile ? profile.nativeLanguage : 'en';
   }
@@ -39,27 +102,31 @@ function getFrontLang(card) {
 }
 
 function getBackLang(card) {
-  // sentence_translation has target-language back (the translated result)
-  if (card.type === 'sentence_translation') {
-    return profile ? profile.targetLanguage : 'en';
-  }
-  // fill_blank back is also in target language (the complete sentence)
-  if (card.type === 'fill_blank') {
-    return profile ? profile.targetLanguage : 'en';
-  }
+  if (card.type === 'sentence_translation') return profile ? profile.targetLanguage : 'en';
+  if (card.type === 'fill_blank')           return profile ? profile.targetLanguage : 'en';
   return profile ? profile.nativeLanguage : 'en';
 }
 
+// ── Public playback functions ─────────────────────────────────
+
+// Front side: speak the word / term / question
 function speakCardFront() {
   const card = studyQueue[studyIdx];
   if (!card) return;
-  speakText(card.front, getFrontLang(card));
+  stopSpeech();
+  _speakSequence([{ text: card.front, langCode: getFrontLang(card) }]);
 }
 
+// Back side: speak word/term first, then the translation / answer.
+// This covers word + example sentence + translation in one pass.
 function speakCardBack() {
   const card = studyQueue[studyIdx];
   if (!card) return;
-  speakText(card.back, getBackLang(card));
+  stopSpeech();
+  _speakSequence([
+    { text: card.front, langCode: getFrontLang(card) },
+    { text: card.back,  langCode: getBackLang(card)  },
+  ]);
 }
 
 function autoPlayFront() {
@@ -77,12 +144,13 @@ function toggleMute() {
   if (audioMuted) {
     stopSpeech();
   } else {
-    // Unmuting — replay whichever side is currently visible
     if (!flipped) speakCardFront();
-    else speakCardBack();
+    else          speakCardBack();
   }
   updateSpeakerBtn();
 }
+
+// ── Speaker button UI ─────────────────────────────────────────
 
 function updateSpeakerBtn() {
   const btn = document.getElementById('btn-speaker');
