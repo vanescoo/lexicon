@@ -1,8 +1,14 @@
 // ─────────────────────────────────────────────────────────────
-// Audio — Web Speech API text-to-speech for card playback
+// Audio — LLM TTS (OpenAI /audio/speech · Gemini generateContent)
+//         with Web Speech API fallback for Claude
+//
+// Uses Web Audio API (AudioContext) for LLM TTS so that:
+//   • Playback is never blocked by browser autoplay policy after async fetches
+//   • Volume is always consistent (no browser fade-in ramp)
+// AudioContext is created and unlocked on the first user click.
 // ─────────────────────────────────────────────────────────────
 
-// Map app language codes → BCP-47 locales for SpeechSynthesis
+// Map app language codes → BCP-47 locales (used by Web Speech fallback)
 const LANG_LOCALES = {
   en: 'en-US', es: 'es-ES', fr: 'fr-FR', de: 'de-DE', it: 'it-IT',
   pt: 'pt-PT', ru: 'ru-RU', ja: 'ja-JP', zh: 'zh-CN', ko: 'ko-KR',
@@ -11,27 +17,146 @@ const LANG_LOCALES = {
   id: 'id-ID', cs: 'cs-CZ', ro: 'ro-RO', hu: 'hu-HU',
 };
 
-let audioMuted = false;
+let audioMuted     = false;
+let _audioCtx      = null;   // shared AudioContext — stays unlocked after first gesture
+let _currentSource = null;   // active AudioBufferSourceNode
 
 function getLocale(langCode) {
   return LANG_LOCALES[langCode] || langCode;
 }
 
+// Create (or resume) the AudioContext.  Called inside user-gesture handlers so
+// the context starts in "running" state and stays that way for the session.
+function _getAudioCtx() {
+  if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return _audioCtx;
+}
+
+// Unlock the AudioContext on the very first user click anywhere on the page.
+// This ensures it is "running" before any async TTS fetch completes.
+document.addEventListener('click', () => {
+  const ctx = _getAudioCtx();
+  if (ctx.state === 'suspended') ctx.resume();
+});
+
+// Stop whatever is currently playing (Web Audio source or Web Speech)
 function stopSpeech() {
+  if (_currentSource) {
+    try { _currentSource.stop(); } catch (_) {}
+    _currentSource = null;
+  }
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 }
 
-function speakText(text, langCode) {
-  if (!('speechSynthesis' in window)) return;
-  stopSpeech();
-  const utt = new SpeechSynthesisUtterance(text);
-  utt.lang = getLocale(langCode);
-  window.speechSynthesis.speak(utt);
+// Returns 'openai' | 'gemini' | 'none' for the active provider
+function _ttsProvider() {
+  if (!profile) return 'none';
+  const base = profile.apiBaseUrl.replace(/\/$/, '');
+  if (base.includes('generativelanguage.googleapis.com') && !base.includes('/openai')) return 'gemini';
+  if (base.includes('anthropic.com')) return 'none';
+  return 'openai';
 }
 
-// Determine which language to use for a card face based on card type
+// Play an AudioBuffer through the shared AudioContext.
+// Resolves when playback finishes.
+function _playAudioBuffer(audioBuffer) {
+  const ctx = _getAudioCtx();
+  return new Promise(resolve => {
+    const source = ctx.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(ctx.destination);
+    _currentSource = source;
+    source.onended = () => { _currentSource = null; resolve(); };
+    source.start(0);
+  });
+}
+
+// Decode Gemini's base64 L16 PCM (mono, 24 kHz) directly into an AudioBuffer.
+// Avoids any WAV-wrapping: samples are normalized to Float32 [-1, 1].
+function _pcmToAudioBuffer(base64pcm) {
+  const ctx        = _getAudioCtx();
+  const raw        = atob(base64pcm);
+  const numSamples = raw.length / 2;          // 16-bit = 2 bytes per sample
+  const abuf       = ctx.createBuffer(1, numSamples, 24000);
+  const ch         = abuf.getChannelData(0);
+  for (let i = 0; i < numSamples; i++) {
+    // L16 from Gemini is little-endian signed 16-bit
+    let s = (raw.charCodeAt(i * 2)) | (raw.charCodeAt(i * 2 + 1) << 8);
+    if (s > 32767) s -= 65536;
+    ch[i] = s / 32768.0;
+  }
+  return abuf;
+}
+
+// Speak via OpenAI-compatible /audio/speech endpoint.
+async function _speakViaOpenAI(text) {
+  const base = profile.apiBaseUrl.replace(/\/$/, '');
+  const res  = await fetch(`${base}/audio/speech`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${profile.apiKey}` },
+    body:    JSON.stringify({ model: 'tts-1', input: text, voice: 'alloy' }),
+  });
+  if (!res.ok) throw new Error(`OpenAI TTS ${res.status}: ${await res.text()}`);
+  const ctx         = _getAudioCtx();
+  const audioBuffer = await ctx.decodeAudioData(await res.arrayBuffer());
+  return _playAudioBuffer(audioBuffer);
+}
+
+// Speak via Gemini generateContent with AUDIO response modality.
+// Uses the dedicated TTS model, not the chat model.
+async function _speakViaGemini(text) {
+  const base = profile.apiBaseUrl.replace(/\/$/, '');
+  const url  = `${base}/models/gemini-2.5-flash-preview-tts:generateContent?key=${profile.apiKey}`;
+  const res  = await fetch(url, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({
+      contents:         [{ role: 'user', parts: [{ text }] }],
+      generationConfig: {
+        responseModalities: ['AUDIO'],
+        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Aoede' } } },
+      },
+    }),
+  });
+  if (!res.ok) throw new Error(`Gemini TTS ${res.status}: ${await res.text()}`);
+  const data   = await res.json();
+  const b64pcm = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+  if (!b64pcm) throw new Error('Gemini TTS: no audio in response');
+  return _playAudioBuffer(_pcmToAudioBuffer(b64pcm));
+}
+
+// Speak via browser Web Speech API.
+// Returns a Promise that resolves when the utterance ends (or on error).
+function _speakViaWebSpeech(text, langCode) {
+  return new Promise(resolve => {
+    if (!('speechSynthesis' in window)) { resolve(); return; }
+    const utt   = new SpeechSynthesisUtterance(text);
+    utt.lang    = getLocale(langCode);
+    utt.onend   = resolve;
+    utt.onerror = resolve;  // resolve so sequence continues even on error
+    window.speechSynthesis.speak(utt);
+  });
+}
+
+// Play an ordered list of {text, langCode} items one after another.
+// Routes to the provider's TTS; falls back to Web Speech on error or for Claude.
+async function _speakSequence(items) {
+  const provider = _ttsProvider();
+  for (const { text, langCode } of items) {
+    if (audioMuted) break;
+    try {
+      if      (provider === 'openai') await _speakViaOpenAI(text);
+      else if (provider === 'gemini') await _speakViaGemini(text);
+      else                            await _speakViaWebSpeech(text, langCode);
+    } catch (_) {
+      await _speakViaWebSpeech(text, langCode);
+    }
+  }
+}
+
+// ── Language helpers ──────────────────────────────────────────
+
 function getFrontLang(card) {
-  // sentence_translation and qa have native-language fronts
   if (card.type === 'sentence_translation' || card.type === 'qa') {
     return profile ? profile.nativeLanguage : 'en';
   }
@@ -39,27 +164,31 @@ function getFrontLang(card) {
 }
 
 function getBackLang(card) {
-  // sentence_translation has target-language back (the translated result)
-  if (card.type === 'sentence_translation') {
-    return profile ? profile.targetLanguage : 'en';
-  }
-  // fill_blank back is also in target language (the complete sentence)
-  if (card.type === 'fill_blank') {
-    return profile ? profile.targetLanguage : 'en';
-  }
+  if (card.type === 'sentence_translation') return profile ? profile.targetLanguage : 'en';
+  if (card.type === 'fill_blank')           return profile ? profile.targetLanguage : 'en';
   return profile ? profile.nativeLanguage : 'en';
 }
 
+// ── Public playback functions ─────────────────────────────────
+
+// Front side: speak the word / term / question
 function speakCardFront() {
   const card = studyQueue[studyIdx];
   if (!card) return;
-  speakText(card.front, getFrontLang(card));
+  stopSpeech();
+  _speakSequence([{ text: card.front, langCode: getFrontLang(card) }]);
 }
 
+// Back side: speak word/term first, then the translation / answer.
+// This covers word + example sentence + translation in one pass.
 function speakCardBack() {
   const card = studyQueue[studyIdx];
   if (!card) return;
-  speakText(card.back, getBackLang(card));
+  stopSpeech();
+  _speakSequence([
+    { text: card.front, langCode: getFrontLang(card) },
+    { text: card.back,  langCode: getBackLang(card)  },
+  ]);
 }
 
 function autoPlayFront() {
@@ -77,12 +206,13 @@ function toggleMute() {
   if (audioMuted) {
     stopSpeech();
   } else {
-    // Unmuting — replay whichever side is currently visible
     if (!flipped) speakCardFront();
-    else speakCardBack();
+    else          speakCardBack();
   }
   updateSpeakerBtn();
 }
+
+// ── Speaker button UI ─────────────────────────────────────────
 
 function updateSpeakerBtn() {
   const btn = document.getElementById('btn-speaker');

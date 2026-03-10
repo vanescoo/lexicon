@@ -3,3 +3,6 @@
 # !! Every AI-assisted commit MUST add a new entry here and bump APP_VERSION in js/config.js !!
 
 [2026-03-10] v1.3.0 – Add card audio playback with Web Speech API TTS; add mandatory versioning/log rule
+[2026-03-10] v1.4.0 – Replace Web Speech TTS with LLM TTS (OpenAI /audio/speech); Web Speech fallback for Claude/Gemini; back side now speaks word then translation in sequence
+[2026-03-10] v1.4.1 – Add Gemini TTS via generateContent AUDIO modality (gemini-2.5-flash-preview-tts); PCM→WAV conversion for browser playback; only Claude falls back to Web Speech
+[2026-03-10] v1.4.2 – Fix card flip to toggle unlimited times with audio each side; switch LLM TTS to Web Audio API (AudioContext) fixing autoplay block on cards 2+ and volume ramp
