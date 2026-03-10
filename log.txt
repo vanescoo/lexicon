@@ -9,3 +9,4 @@
 [2026-03-10] v1.4.3 – Fix audio overlap: AbortController cancels in-flight TTS fetch on flip/advance; sequence ID (_seqId) drops stale audio that arrives after a newer request started
 [2026-03-10] v1.4.4 – Fix back-side audio: speak only card.back on flip, not card.front then card.back
 [2026-03-10] v1.5.0 – Merge Home + Curriculum into single "Vocabulary Flashcards" page; restrict generation to vocabulary type only; add "Delete All Memory" button in Settings
+[2026-03-10] v1.5.1 – Fix sidebar: constrain dashboard to 100vh with overflow hidden so only main content area scrolls, sidebar stays fixed

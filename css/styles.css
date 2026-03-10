@@ -76,8 +76,8 @@ select option { background: #1E2235; }
 .provider-hint { font-size: 0.65rem; color: var(--muted); margin-top: 5px; font-family: monospace; }
 
 /* ── App Layout ── */
-#screen-dashboard { flex-direction: row; }
-.sidebar { width: 220px; min-height: 100vh; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 24px 12px; flex-shrink: 0; }
+#screen-dashboard { flex-direction: row; height: 100vh; overflow: hidden; }
+.sidebar { width: 220px; height: 100vh; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 24px 12px; flex-shrink: 0; overflow-y: auto; }
 .sidebar-logo { font-family: var(--font-d); font-size: 1.9rem; font-weight: 700; padding: 0 8px; margin-bottom: 36px; }
 .sidebar-logo span { color: var(--gold); }
 .nav-group { margin-bottom: 24px; }
