@@ -42,10 +42,15 @@ function dueCards(ofTopicId = null) {
 // All topics in a level unlock together.
 // A1 is always unlocked. A2 unlocks when 75% of A1 words are mastered.
 // B1 unlocks when 75% of A2 words are mastered.
+// Placement bypass: if user completed levelling test and was placed at or above this level.
 function isUnlocked(topic) {
   const levelOrder = ['A1', 'A2', 'B1'];
   const levelIdx   = levelOrder.indexOf(topic.level);
   if (levelIdx <= 0) return true;
+  if (profile?.placementLevel) {
+    const placementIdx = levelOrder.indexOf(profile.placementLevel);
+    if (levelIdx <= placementIdx) return true;
+  }
   const prevLevel    = levelOrder[levelIdx - 1];
   const prevTopics   = getTopics().filter(t => t.level === prevLevel);
   const prevAdvanced = prevTopics.reduce((sum, t) => sum + (topicStats[t.id]?.advanced || 0), 0);

@@ -415,6 +415,76 @@
   </div>
 </div>
 
+<!-- ── Placement Modal ── -->
+<div class="overlay" id="placement-modal">
+  <div class="modal placement-modal-inner">
+
+    <!-- Choice -->
+    <div id="pl-view-choice">
+      <div class="pl-brand">Lexi<span>con</span></div>
+      <h2 style="font-family:var(--font-d);font-size:1.9rem;font-weight:700;margin:6px 0 8px">Welcome!</h2>
+      <p style="color:var(--muted);font-size:0.9rem;margin-bottom:28px">How would you like to start your learning journey?</p>
+      <div class="pl-choice-btns">
+        <button class="pl-choice-btn" onclick="placementSkip()">
+          <div class="pl-choice-icon">📚</div>
+          <div class="pl-choice-title">Start from Beginning</div>
+          <div class="pl-choice-desc">Begin at A1 Foundations — ideal if you're new to the language</div>
+        </button>
+        <button class="pl-choice-btn pl-choice-featured" onclick="placementStartTest()">
+          <div class="pl-choice-icon">🎯</div>
+          <div class="pl-choice-title">Take Levelling Test</div>
+          <div class="pl-choice-desc">AI-generated questions to find your level (A1 / A2 / B1) and jump straight in</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="pl-view-loading" style="display:none">
+      <div class="pl-center-wrap">
+        <div class="spinner"></div>
+        <p id="pl-loading-msg" style="color:var(--muted);font-size:0.9rem">Generating questions…</p>
+      </div>
+    </div>
+
+    <!-- Question -->
+    <div id="pl-view-question" style="display:none">
+      <div class="pl-progress-bar"><div class="pl-prog-fill" id="pl-prog-fill"></div></div>
+      <div class="pl-progress-txt" id="pl-progress-txt">A1 · 1 / 10</div>
+      <div class="pl-prompt">What does this word mean?</div>
+      <div class="pl-word" id="pl-word">goedemorgen</div>
+      <div class="pl-answer-grid" id="pl-answer-btns"></div>
+    </div>
+
+    <!-- Transition -->
+    <div id="pl-view-transition" style="display:none">
+      <div class="pl-center-wrap">
+        <div style="font-size:3rem;margin-bottom:12px">🚀</div>
+        <p id="pl-transition-msg" style="font-size:1.05rem;color:var(--muted)"></p>
+      </div>
+    </div>
+
+    <!-- Result -->
+    <div id="pl-view-result" style="display:none">
+      <div class="pl-center-wrap">
+        <div style="font-size:3rem;margin-bottom:8px">🎉</div>
+        <div class="pl-result-label">Your level</div>
+        <div class="pl-result-level" id="pl-result-level">A2</div>
+        <p class="pl-result-sub" id="pl-result-sub"></p>
+        <p class="pl-result-score" id="pl-result-score"></p>
+      </div>
+    </div>
+
+    <!-- Generating first topic -->
+    <div id="pl-view-generating" style="display:none">
+      <div class="pl-center-wrap">
+        <div class="spinner"></div>
+        <p id="pl-gen-msg" style="color:var(--muted);font-size:0.9rem">Generating first topic…</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 <!-- ── Toast ── -->
 <div class="toast" id="toast">
   <span class="toast-msg" id="toast-msg"></span>
@@ -436,6 +506,7 @@
 <script src="js/leitner.js"></script>
 <script src="js/topics.js"></script>
 <script src="js/generate.js"></script>
+<script src="js/placement.js"></script>
 <script src="js/app.js"></script>
 
 </body>
