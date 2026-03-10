@@ -169,7 +169,7 @@ RESPOND WITH ONLY A RAW JSON ARRAY. No markdown, no backticks, no explanation. E
         type:           'vocabulary',
         front:          String(c.front),
         back:           String(c.back),
-        box:            1,
+        box:            0,
         nextReviewDate: now,
         createdAt:      now,
         lastReviewedAt: null,

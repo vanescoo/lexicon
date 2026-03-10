@@ -166,6 +166,7 @@ select option { background: #1E2235; }
 .ti-due   { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
 .ti-due.due-now { color: var(--gold); font-weight: 600; }
 .ti-box-badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; white-space: nowrap; }
+.ti-box-0 { background: rgba(255,255,255,0.07); color: var(--muted); }
 .ti-box-1 { background: rgba(194, 91, 91, 0.18); color: #e07070; }
 .ti-box-2 { background: rgba(212,168, 83, 0.18); color: var(--gold); }
 .ti-box-3 { background: rgba( 90,180,100, 0.18); color: #7dca82; }
@@ -173,7 +174,7 @@ select option { background: #1E2235; }
 .ti-box-5 { background: rgba(160, 90,220, 0.18); color: #c48de8; }
 
 /* ── Leitner Inspector Modal ── */
-.modal-wide { max-width: 760px; }
+.modal-wide { max-width: 988px; }
 .leitner-modal-hd { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .leitner-modal-hd .modal-sub { margin-bottom: 20px; }
 .leitner-table-wrap { overflow-x: auto; margin-top: 4px; }
@@ -189,6 +190,8 @@ select option { background: #1E2235; }
 .lt-due.due-now { color: var(--gold); font-weight: 600; }
 .leitner-box { cursor: pointer; transition: var(--t); }
 .leitner-box:hover { border-color: rgba(212,168,83,0.4); transform: translateY(-2px); }
+.leitner-box-new .leitner-box-val { color: var(--muted); }
+.leitner-box-new { border-style: dashed; }
 
 /* ── Generate Modal ── */
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.72); display: none; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(6px); padding: 20px; }

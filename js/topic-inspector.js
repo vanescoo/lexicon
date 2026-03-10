@@ -44,21 +44,27 @@ function openTopicInspector(topicId) {
   genBtn.onclick     = () => { closeTopicInspector(); openGenModal(topicId); };
   bar.appendChild(genBtn);
 
-  // Word table
+  // Word table — box 0 (unseen) first, then by nextReviewDate
   const cards = allCards
     .filter(c => c.topicId === topicId)
-    .sort((a, b) => (a.nextReviewDate || 0) - (b.nextReviewDate || 0));
+    .sort((a, b) => {
+      if (a.box === 0 && b.box !== 0) return -1;
+      if (b.box === 0 && a.box !== 0) return  1;
+      return (a.nextReviewDate || 0) - (b.nextReviewDate || 0);
+    });
 
   const tbody = document.getElementById('ti-table-body');
   tbody.innerHTML = cards.map(c => {
-    const dueDate = c.nextReviewDate ? new Date(c.nextReviewDate) : null;
-    const isDue   = dueDate && c.nextReviewDate <= Date.now();
-    const dueTxt  = dueDate ? (isDue ? 'Due now' : formatRelativeDate(c.nextReviewDate)) : '—';
+    const unseen  = c.box === 0;
+    const isDue   = !unseen && c.nextReviewDate && c.nextReviewDate <= Date.now();
+    const dueTxt  = unseen ? 'Not yet seen'
+      : (c.nextReviewDate ? (isDue ? 'Due now' : formatRelativeDate(c.nextReviewDate)) : '—');
+    const boxLabel = unseen ? 'New' : `Box ${c.box}`;
     return `
       <tr>
         <td class="ti-front">${escapeHtml(c.front)}</td>
         <td class="ti-back">${escapeHtml(c.back)}</td>
-        <td><span class="ti-box-badge ti-box-${c.box}">Box ${c.box}</span></td>
+        <td><span class="ti-box-badge ti-box-${c.box}">${boxLabel}</span></td>
         <td class="ti-due ${isDue ? 'due-now' : ''}">${dueTxt}</td>
       </tr>`;
   }).join('');
