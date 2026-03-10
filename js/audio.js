@@ -2,6 +2,11 @@
 // Audio — LLM TTS (OpenAI /audio/speech · Gemini generateContent)
 //         with Web Speech API fallback for Claude
 //
+// Pre-generation: after card creation, preCacheCardAudio() fetches
+// all TTS clips upfront and stores them in IndexedDB (audio-cache.js).
+// During study, _playItem() serves clips from cache; falls back to
+// live TTS on a cache miss so old cards still work.
+//
 // Uses Web Audio API (AudioContext) for LLM TTS so that:
 //   • Playback is never blocked by browser autoplay policy after async fetches
 //   • Volume is always consistent (no browser fade-in ramp)
@@ -90,8 +95,8 @@ function _pcmToAudioBuffer(base64pcm) {
   return abuf;
 }
 
-// Speak via OpenAI-compatible /audio/speech endpoint.
-// Returns early (silently) if superseded by a newer sequence.
+// ── Live TTS (with sequence-ID guard) ────────────────────────
+
 async function _speakViaOpenAI(text, id) {
   const ctrl = new AbortController();
   _currentAbort = ctrl;
@@ -111,8 +116,6 @@ async function _speakViaOpenAI(text, id) {
   return _playAudioBuffer(audioBuffer);
 }
 
-// Speak via Gemini generateContent with AUDIO response modality.
-// Returns early (silently) if superseded by a newer sequence.
 async function _speakViaGemini(text, id) {
   const ctrl = new AbortController();
   _currentAbort = ctrl;
@@ -140,7 +143,6 @@ async function _speakViaGemini(text, id) {
   return _playAudioBuffer(_pcmToAudioBuffer(b64pcm));
 }
 
-// Speak via browser Web Speech API.
 function _speakViaWebSpeech(text, langCode, id) {
   return new Promise(resolve => {
     if (!('speechSynthesis' in window) || _seqId !== id) { resolve(); return; }
@@ -152,21 +154,104 @@ function _speakViaWebSpeech(text, langCode, id) {
   });
 }
 
-// Play an ordered list of {text, langCode} items one after another.
-// Each item checks the sequence ID before and after its fetch so that
-// any flip or card advance immediately silences everything in progress.
+// ── Cache-aware single item player ───────────────────────────
+// Checks IndexedDB first; falls through to live TTS on miss.
+
+async function _playItem(text, langCode, cardId, side, seqId, provider) {
+  if (cardId && side) {
+    const cached = await audioCacheGet(`${cardId}_${side}`);
+    if (cached && _seqId === seqId) {
+      const ctx = _getAudioCtx();
+      const audioBuffer = cached.format === 'openai'
+        ? await ctx.decodeAudioData(cached.data)   // fresh ArrayBuffer from IndexedDB
+        : _pcmToAudioBuffer(cached.data);           // base64 PCM string → AudioBuffer
+      if (_seqId !== seqId) return;
+      return _playAudioBuffer(audioBuffer);
+    }
+  }
+  // Live TTS fallback
+  if (provider === 'openai') return _speakViaOpenAI(text, seqId);
+  if (provider === 'gemini') return _speakViaGemini(text, seqId);
+  return _speakViaWebSpeech(text, langCode, seqId);
+}
+
+// Play an ordered list of {text, langCode, cardId?, side?} items.
 async function _speakSequence(items) {
   const id       = ++_seqId;
   const provider = _ttsProvider();
-  for (const { text, langCode } of items) {
+  for (const { text, langCode, cardId, side } of items) {
     if (audioMuted || _seqId !== id) return;
     try {
-      if      (provider === 'openai') await _speakViaOpenAI(text, id);
-      else if (provider === 'gemini') await _speakViaGemini(text, id);
-      else                            await _speakViaWebSpeech(text, langCode, id);
+      await _playItem(text, langCode, cardId, side, id, provider);
     } catch (_) {
       if (_seqId !== id) return;
       await _speakViaWebSpeech(text, langCode, id);
+    }
+  }
+}
+
+// ── Pre-generation (called after card batch write) ────────────
+
+// Fetch raw TTS audio without playing it.
+// Returns ArrayBuffer for OpenAI, base64 string for Gemini.
+async function _fetchTtsRaw(text, provider) {
+  const base = profile.apiBaseUrl.replace(/\/$/, '');
+
+  if (provider === 'openai') {
+    const res = await fetch(`${base}/audio/speech`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${profile.apiKey}` },
+      body:    JSON.stringify({ model: 'tts-1', input: text, voice: 'alloy' }),
+    });
+    if (!res.ok) throw new Error(`TTS ${res.status}`);
+    return res.arrayBuffer();
+  }
+
+  if (provider === 'gemini') {
+    const url = `${base}/models/gemini-2.5-flash-preview-tts:generateContent?key=${profile.apiKey}`;
+    const res = await fetch(url, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        contents:         [{ role: 'user', parts: [{ text }] }],
+        generationConfig: {
+          responseModalities: ['AUDIO'],
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Aoede' } } },
+        },
+      }),
+    });
+    if (!res.ok) throw new Error(`TTS ${res.status}`);
+    const data   = await res.json();
+    const b64pcm = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    if (!b64pcm) throw new Error('No audio data in response');
+    return b64pcm; // store as string
+  }
+}
+
+// Pre-cache TTS audio for an array of { id, front, back } cards.
+// front = target-language word, back = native-language translation.
+// The TTS model infers the correct pronunciation language from the text.
+// onProgress(done, total) is called after each clip is stored.
+async function preCacheCardAudio(cards, onProgress) {
+  const provider = _ttsProvider();
+  if (provider === 'none') return; // Claude → Web Speech, nothing to pre-cache
+
+  const total = cards.length * 2; // front + back per card
+  let done = 0;
+
+  for (const card of cards) {
+    for (const side of ['front', 'back']) {
+      const key  = `${card.id}_${side}`;
+      const text = side === 'front' ? card.front : card.back;
+      try {
+        if (!(await audioCacheGet(key))) {          // skip if already cached
+          const data = await _fetchTtsRaw(text, provider);
+          await audioCacheSet(key, { format: provider, data });
+        }
+      } catch (_) {
+        // Network error or rate limit — skip; live TTS covers playback
+      }
+      onProgress?.(++done, total);
     }
   }
 }
@@ -192,14 +277,14 @@ function speakCardFront() {
   const card = studyQueue[studyIdx];
   if (!card) return;
   stopSpeech();
-  _speakSequence([{ text: card.front, langCode: getFrontLang(card) }]);
+  _speakSequence([{ text: card.front, langCode: getFrontLang(card), cardId: card.id, side: 'front' }]);
 }
 
 function speakCardBack() {
   const card = studyQueue[studyIdx];
   if (!card) return;
   stopSpeech();
-  _speakSequence([{ text: card.back, langCode: getBackLang(card) }]);
+  _speakSequence([{ text: card.back, langCode: getBackLang(card), cardId: card.id, side: 'back' }]);
 }
 
 function autoPlayFront() {

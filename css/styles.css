@@ -203,8 +203,13 @@ select option { background: #1E2235; }
 .cnt-btn { padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: transparent; color: var(--text); font-family: var(--font-ui); font-weight: 600; cursor: pointer; transition: var(--t); }
 .cnt-btn.sel { border-color: var(--gold); background: rgba(212,168,83,0.12); color: var(--gold); }
 .modal-actions { display: flex; gap: 10px; margin-top: 24px; }
-.gen-loading { text-align: center; padding: 32px 0; color: var(--muted); font-size: 0.9rem; }
-.gen-loading .spinner { margin: 0 auto 14px; }
+.gen-loading { text-align: center; padding: 32px 0; color: var(--muted); font-size: 0.9rem; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.gen-loading .spinner { margin: 0; }
+
+/* ── Audio pre-cache progress ── */
+.audio-prog-bar { height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+.audio-prog-fill { height: 100%; background: var(--gold); border-radius: 2px; width: 0%; transition: width 0.15s ease; }
+.audio-prog-label { font-size: 0.75rem; color: var(--muted); }
 
 /* ── Study Screen ── */
 #screen-study { align-items: center; justify-content: center; padding: 32px 20px; background: radial-gradient(ellipse at 50% -20%, rgba(212,168,83,0.04), transparent 60%), var(--bg); }
@@ -287,6 +292,8 @@ select option { background: #1E2235; }
 #placement-modal { pointer-events: none; }
 #placement-modal.open { pointer-events: all; }
 .placement-modal-inner { max-width: 480px; padding: 40px; text-align: center; }
+.pl-close-btn { position: absolute; top: 14px; right: 14px; background: none; border: none; cursor: pointer; color: var(--muted); font-size: 1rem; padding: 5px 9px; border-radius: 6px; transition: var(--t); line-height: 1; }
+.pl-close-btn:hover { color: var(--text); background: var(--surface2); }
 
 .pl-brand { font-family: var(--font-d); font-size: 2.4rem; font-weight: 700; letter-spacing: -1px; margin-bottom: 4px; }
 .pl-brand span { color: var(--gold); }

@@ -240,6 +240,11 @@
           <div class="form-group"><label>API Key</label><input id="set-key" type="password" /></div>
         </div>
         <button class="btn btn-primary" id="btn-save-settings" style="width:fit-content;padding:12px 32px">Save Changes</button>
+        <div class="card-block" style="margin-top:24px">
+          <h3 style="font-family:var(--font-d);font-size:1.15rem;margin-bottom:10px;padding-bottom:12px;border-bottom:1px solid var(--border);color:var(--text)">Levelling Test</h3>
+          <p style="color:var(--muted);font-size:0.88rem;margin-bottom:16px">Retake the adaptive placement test to update your starting level across all 6 CEFR levels.</p>
+          <button class="btn btn-ghost" onclick="showPlacementModal(true)" style="width:fit-content">Retake Levelling Test 🎯</button>
+        </div>
         <div class="card-block" style="margin-top:24px;border-color:rgba(194,91,91,0.25)">
           <h3 style="font-family:var(--font-d);font-size:1.15rem;margin-bottom:10px;padding-bottom:12px;border-bottom:1px solid rgba(194,91,91,0.2);color:var(--red)">Danger Zone</h3>
           <p style="color:var(--muted);font-size:0.88rem;margin-bottom:16px">Permanently erase progress for a course. This cannot be undone.</p>
@@ -382,7 +387,11 @@
 
     <div id="gen-loading" class="gen-loading" style="display:none">
       <div class="spinner"></div>
-      Generating with AI… this takes 10–20 seconds
+      <span id="gen-loading-msg">Generating with AI… this takes 10–20 seconds</span>
+      <div id="gen-audio-prog" style="display:none;width:100%;margin-top:8px">
+        <div class="audio-prog-bar"><div class="audio-prog-fill" id="gen-audio-fill"></div></div>
+        <span id="gen-audio-label" class="audio-prog-label"></span>
+      </div>
     </div>
   </div>
 </div>
@@ -417,7 +426,8 @@
 
 <!-- ── Placement Modal ── -->
 <div class="overlay" id="placement-modal">
-  <div class="modal placement-modal-inner">
+  <div class="modal placement-modal-inner" style="position:relative">
+    <button class="pl-close-btn" onclick="closePlacementModal()" title="Close">✕</button>
 
     <!-- Choice -->
     <div id="pl-view-choice">
@@ -473,6 +483,10 @@
       <div class="pl-center-wrap">
         <div class="spinner"></div>
         <p id="pl-gen-msg" style="color:var(--muted);font-size:0.9rem">Generating first topic…</p>
+        <div id="pl-audio-prog" style="display:none;width:100%;max-width:280px">
+          <div class="audio-prog-bar"><div class="audio-prog-fill" id="pl-audio-fill"></div></div>
+          <span id="pl-audio-label" class="audio-prog-label"></span>
+        </div>
       </div>
     </div>
 
@@ -494,6 +508,7 @@
 <script src="js/utils.js"></script>
 <script src="js/data.js"></script>
 <script src="js/render.js"></script>
+<script src="js/audio-cache.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/study.js"></script>
 <script src="js/topic-inspector.js"></script>

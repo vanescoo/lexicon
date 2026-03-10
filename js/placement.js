@@ -18,18 +18,31 @@ const PLACEMENT_TOTAL_Q     = 15;
 const PLACEMENT_Q_PER_LEVEL = 5;
 const PLACEMENT_START_LEVEL = 'A2';
 
-let _plAllQ     = {};   // { A1:[...], A2:[...], ... } — pre-fetched questions
-let _plUsed     = {};   // { A1: 0, A2: 3, ... }       — pool index per level
-let _plCurLevel = null; // current difficulty level
-let _plCurQ     = null; // current question object
-let _plOptions  = [];   // shuffled answer options for current question
-let _plHistory  = [];   // [{ level, correct }, ...] one entry per answered Q
+let _plAllQ        = {};   // { A1:[...], A2:[...], ... } — pre-fetched questions
+let _plUsed        = {};   // { A1: 0, A2: 3, ... }       — pool index per level
+let _plCurLevel    = null; // current difficulty level
+let _plCurQ        = null; // current question object
+let _plOptions     = [];   // shuffled answer options for current question
+let _plHistory     = [];   // [{ level, correct }, ...] one entry per answered Q
+let _plFromSettings = false; // true when opened from Settings (retake)
 
 // ── Entry point ──────────────────────────────────────────────
 
-function showPlacementModal() {
+// fromSettings=true → closing without finishing preserves existing placement.
+// fromSettings=false (first-time) → closing treats as "Start from Beginning".
+function showPlacementModal(fromSettings = false) {
+  _plFromSettings = fromSettings;
   setPlView('choice');
   document.getElementById('placement-modal').classList.add('open');
+}
+
+// X button — behaviour depends on how modal was opened
+function closePlacementModal() {
+  if (_plFromSettings) {
+    document.getElementById('placement-modal').classList.remove('open');
+  } else {
+    placementSkip(); // first-time: mark done, stay at A1
+  }
 }
 
 // ── User choices ─────────────────────────────────────────────
@@ -227,12 +240,30 @@ async function _finalizePlacement(level) {
 
 async function _autoGenerate(topic) {
   setPlView('generating');
-  document.getElementById('pl-gen-msg').textContent = `Generating "${topic.name}"…`;
+
+  const msgEl    = document.getElementById('pl-gen-msg');
+  const progWrap = document.getElementById('pl-audio-prog');
+  const progFill = document.getElementById('pl-audio-fill');
+  const progLabel= document.getElementById('pl-audio-label');
+
+  msgEl.textContent      = `Generating "${topic.name}"…`;
+  progWrap.style.display = 'none';
 
   try {
-    const count = await generateCardsCore(topic.id);
-    document.getElementById('placement-modal').classList.remove('open');
+    const { count, newCards } = await generateCardsCore(topic.id);
     await loadCards();
+
+    // Pre-cache TTS audio for all new cards
+    if (newCards.length > 0 && _ttsProvider() !== 'none') {
+      msgEl.textContent      = 'Pre-loading audio…';
+      progWrap.style.display = '';
+      await preCacheCardAudio(newCards, (done, total) => {
+        progFill.style.width  = `${done / total * 100}%`;
+        progLabel.textContent = `${done} / ${total} clips`;
+      });
+    }
+
+    document.getElementById('placement-modal').classList.remove('open');
     renderHome();
     renderCurriculum();
     toast(
