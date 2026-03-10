@@ -145,6 +145,7 @@ RESPOND WITH ONLY A RAW JSON ARRAY. No markdown, no backticks, no explanation. E
       const ref = db.collection('users').doc(currentUser.uid).collection('cards').doc();
       batch.set(ref, {
         topicId:        genTopicId,
+        targetLanguage: profile.targetLanguage,
         type:           'vocabulary',
         front:          String(c.front),
         back:           String(c.back),

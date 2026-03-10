@@ -41,6 +41,76 @@ function fillLangSelects(ids) {
   });
 }
 
+// Settings page: "I speak" locked to English; "I'm learning" restricted to Dutch + Italian
+const SETTINGS_TARGET_LANGS = ['nl', 'it'];
+
+function fillSettingsLangSelects() {
+  const nativeEl = document.getElementById('set-native');
+  nativeEl.innerHTML = '<option value="en">English</option>';
+  nativeEl.value = 'en';
+
+  const targetEl = document.getElementById('set-target');
+  targetEl.innerHTML = LANGUAGES
+    .filter(l => SETTINGS_TARGET_LANGS.includes(l.code))
+    .map(l => `<option value="${l.code}">${l.name}</option>`)
+    .join('');
+  targetEl.value = SETTINGS_TARGET_LANGS.includes(profile.targetLanguage)
+    ? profile.targetLanguage
+    : SETTINGS_TARGET_LANGS[0];
+}
+
+// Danger Zone: one button per distinct targetLanguage found in allCards
+function renderDangerZone() {
+  const body = document.getElementById('danger-zone-body');
+  if (!body) return;
+
+  // Cards with a targetLanguage field (generated after v1.5.2)
+  const langs = [...new Set(allCards.map(c => c.targetLanguage).filter(Boolean))];
+  // Legacy cards with no targetLanguage — group under current profile language
+  const hasLegacy = allCards.some(c => !c.targetLanguage);
+
+  if (langs.length === 0 && !hasLegacy) {
+    body.innerHTML = '<p style="color:var(--muted);font-size:0.85rem">No flashcard data to delete.</p>';
+    return;
+  }
+
+  const buttons = [];
+  langs.forEach(lang => {
+    buttons.push(`<button class="btn btn-danger" style="margin:0 10px 10px 0"
+      onclick="deleteCourseCards('${lang}')">Forget ${langName(lang)}</button>`);
+  });
+  if (hasLegacy) {
+    const label = langName(profile.targetLanguage);
+    buttons.push(`<button class="btn btn-danger" style="margin:0 10px 10px 0"
+      onclick="deleteCourseCards(null)">Forget ${label}</button>`);
+  }
+  body.innerHTML = buttons.join('');
+}
+
+async function deleteCourseCards(targetLanguage) {
+  const label = langName(targetLanguage || profile.targetLanguage);
+  if (!confirm(`Forget all ${label} progress? This cannot be undone.`)) return;
+  try {
+    const toDelete = targetLanguage
+      ? allCards.filter(c => c.targetLanguage === targetLanguage)
+      : allCards.filter(c => !c.targetLanguage);
+    for (let i = 0; i < toDelete.length; i += 500) {
+      const batch = db.batch();
+      toDelete.slice(i, i + 500).forEach(c =>
+        batch.delete(db.collection('users').doc(currentUser.uid).collection('cards').doc(c.id))
+      );
+      await batch.commit();
+    }
+    await loadCards();
+    renderHome();
+    renderCurriculum();
+    renderDangerZone();
+    toast(`${label} progress deleted.`, 'success');
+  } catch (e) {
+    toast('Failed to delete: ' + e.message, 'error');
+  }
+}
+
 // ── Navigation ───────────────────────────────────────────────
 
 function showScreen(name) {
@@ -68,12 +138,13 @@ function initApp() {
   document.getElementById('cur-sub').textContent   =
     `Your complete ${langName(profile.targetLanguage)} path — 60 topics across 6 CEFR levels`;
 
-  fillLangSelects(['set-native', 'set-target']);
+  fillSettingsLangSelects();
   selectProvider(detectProvider(profile), 'set');
   document.getElementById('set-key').value = profile.apiKey || '';
 
   renderHome();
   renderCurriculum();
+  renderDangerZone();
 }
 
 // ── Auth lifecycle ───────────────────────────────────────────
@@ -170,26 +241,6 @@ document.getElementById('btn-save-settings').onclick = async () => {
     toast('Settings saved!', 'success');
   } catch (e) {
     toast('Failed to save settings: ' + e.message, 'error');
-  }
-};
-
-// ── Event wiring: delete all memory ──────────────────────────
-
-document.getElementById('btn-delete-memory').onclick = async () => {
-  if (!confirm('Delete ALL flashcard progress? This cannot be undone.')) return;
-  try {
-    const snap = await db.collection('users').doc(currentUser.uid).collection('cards').get();
-    for (let i = 0; i < snap.docs.length; i += 500) {
-      const batch = db.batch();
-      snap.docs.slice(i, i + 500).forEach(d => batch.delete(d.ref));
-      await batch.commit();
-    }
-    await loadCards();
-    renderHome();
-    renderCurriculum();
-    toast('All progress deleted.', 'success');
-  } catch (e) {
-    toast('Failed to delete: ' + e.message, 'error');
   }
 };
 
